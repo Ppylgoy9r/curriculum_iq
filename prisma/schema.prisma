@@ -1,0 +1,43 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Batch {
+  id          String       @id @default(cuid())
+  name        String
+  description String?
+  curricula   Curriculum[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Curriculum {
+  id         String     @id @default(cuid())
+  batchId    String
+  batch      Batch      @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  fileName   String
+  weekData   String     // JSON string of week-wise topics
+  analysis   Analysis?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+}
+
+model Analysis {
+  id                String     @id @default(cuid())
+  curriculumId      String     @unique
+  curriculum        Curriculum @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
+  effectivenessScore Int
+  overallScore      Int
+  trendMatch        String     // JSON string of trend comparison data
+  outdatedTopics    String     // JSON array of outdated topics
+  recommendedTopics String     // JSON array of recommended topics
+  weekAnalysis      String     // JSON string of per-week analysis
+  summary           String     // AI-generated summary
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+}
