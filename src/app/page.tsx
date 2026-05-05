@@ -87,7 +87,47 @@ import {
   Zap,
   ArrowLeftRight,
   Download,
+  FileDown,
 } from 'lucide-react';
+
+// ==================== Data Normalization ====================
+function normalizeAnalysis(raw: any): Analysis | null {
+  if (!raw) return null;
+  try {
+    // The AI returns trendComparison; the DB stores it as stringified trendMatch
+    const trendMatch = raw.trendMatch
+      ? (typeof raw.trendMatch === 'string' ? JSON.parse(raw.trendMatch) : raw.trendMatch)
+      : raw.trendComparison
+        ? (typeof raw.trendComparison === 'string' ? JSON.parse(raw.trendComparison) : raw.trendComparison)
+        : { categories: [], curriculumScore: [], industryDemand: [], gap: [] };
+
+    const outdatedTopics = raw.outdatedTopics
+      ? (typeof raw.outdatedTopics === 'string' ? JSON.parse(raw.outdatedTopics) : raw.outdatedTopics)
+      : [];
+
+    const recommendedTopics = raw.recommendedTopics
+      ? (typeof raw.recommendedTopics === 'string' ? JSON.parse(raw.recommendedTopics) : raw.recommendedTopics)
+      : [];
+
+    const weekAnalysis = raw.weekAnalysis
+      ? (typeof raw.weekAnalysis === 'string' ? JSON.parse(raw.weekAnalysis) : raw.weekAnalysis)
+      : [];
+
+    return {
+      id: raw.id || '',
+      effectivenessScore: raw.effectivenessScore || 0,
+      overallScore: raw.overallScore || 0,
+      trendMatch: trendMatch as TrendComparison,
+      outdatedTopics: outdatedTopics as OutdatedTopic[],
+      recommendedTopics: recommendedTopics as RecommendedTopic[],
+      weekAnalysis: weekAnalysis as WeekAnalysis[],
+      summary: raw.summary || '',
+    };
+  } catch (e) {
+    console.error('Failed to normalize analysis:', e);
+    return null;
+  }
+}
 
 // ==================== Types ====================
 interface WeekData {
@@ -266,7 +306,7 @@ export default function Home() {
             const latestCurriculum = freshBatch.curricula[freshBatch.curricula.length - 1];
             setSelectedCurriculum(latestCurriculum);
             if (latestCurriculum.analysis) {
-              setAnalysis(latestCurriculum.analysis);
+              setAnalysis(normalizeAnalysis(latestCurriculum.analysis));
             }
           }
         }
@@ -294,7 +334,7 @@ export default function Home() {
         setError(data.error || 'Analysis failed');
         return;
       }
-      setAnalysis(data.analysis);
+      setAnalysis(normalizeAnalysis(data.analysis));
       setActiveTab('dashboard');
     } catch (err) {
       setError('Failed to analyze curriculum');
@@ -306,12 +346,124 @@ export default function Home() {
   // View curriculum analysis
   const handleViewCurriculum = async (curriculum: Curriculum) => {
     setSelectedCurriculum(curriculum);
-    if (curriculum.analysis) {
-      setAnalysis(curriculum.analysis);
-      setActiveTab('dashboard');
-    } else {
-      setAnalysis(null);
-      setActiveTab('dashboard');
+    const normalized = normalizeAnalysis(curriculum.analysis);
+    setAnalysis(normalized);
+    setActiveTab('dashboard');
+  };
+
+  // ==================== Download XLS ====================
+  const handleDownloadXLS = async () => {
+    if (!analysis || !selectedCurriculum) return;
+    try {
+      const XLSX = await import('xlsx');
+      const wb = XLSX.utils.book_new();
+
+      // Sheet 1: Updated Curriculum with Recommendations
+      const weekDataRaw = selectedCurriculum.weekData;
+      const weekData: WeekData[] = typeof weekDataRaw === 'string' ? JSON.parse(weekDataRaw) : weekDataRaw || [];
+
+      const curriculumRows: Record<string, string | number>[] = [];
+      weekData.forEach(w => {
+        w.topics.forEach((t, idx) => {
+          const weekNote = analysis.weekAnalysis?.find(wa => wa.week === w.week);
+          const isOutdated = analysis.outdatedTopics?.some(ot => ot.week === w.week && ot.topic.toLowerCase().includes(t.toLowerCase()));
+          curriculumRows.push({
+            'Week': w.week,
+            'Topic': t,
+            'Status': isOutdated ? 'OUTDATED - Replace' : (weekNote?.status || 'Current'),
+            'Relevance Score': weekNote?.relevanceScore || '-',
+            'Notes': weekNote?.notes || '',
+            'Action': isOutdated ? 'Remove or update this topic' : 'Keep as is',
+          });
+        });
+        // Add recommended topics for this week
+        const recommended = analysis.recommendedTopics?.filter(rt => rt.suggestedWeek === w.week) || [];
+        recommended.forEach(rt => {
+          curriculumRows.push({
+            'Week': w.week,
+            'Topic': rt.topic,
+            'Status': 'NEW - Add',
+            'Relevance Score': '-',
+            'Notes': rt.reason,
+            'Action': `Add this topic (${rt.priority} priority)`,
+          });
+        });
+      });
+      // Add recommended topics that don't match existing weeks
+      const existingWeeks = new Set(weekData.map(w => w.week));
+      const orphanRecs = (analysis.recommendedTopics || []).filter(rt => !existingWeeks.has(rt.suggestedWeek));
+      orphanRecs.forEach(rt => {
+        curriculumRows.push({
+          'Week': rt.suggestedWeek,
+          'Topic': rt.topic,
+          'Status': 'NEW - Add',
+          'Relevance Score': '-',
+          'Notes': rt.reason,
+          'Action': `Add this topic (${rt.priority} priority)`,
+        });
+      });
+
+      const ws1 = XLSX.utils.json_to_sheet(curriculumRows);
+      ws1['!cols'] = [{ wch: 8 }, { wch: 40 }, { wch: 20 }, { wch: 16 }, { wch: 50 }, { wch: 40 }];
+      XLSX.utils.book_append_sheet(wb, ws1, 'Updated Curriculum');
+
+      // Sheet 2: Analysis Summary
+      const summaryRows: Record<string, string | number>[] = [
+        { 'Metric': 'Effectiveness Score', 'Value': analysis.effectivenessScore + '%' },
+        { 'Metric': 'Overall Quality Score', 'Value': analysis.overallScore + '%' },
+        { 'Metric': 'Total Weeks', 'Value': weekData.length },
+        { 'Metric': 'Outdated Topics', 'Value': analysis.outdatedTopics?.length || 0 },
+        { 'Metric': 'Recommended Additions', 'Value': analysis.recommendedTopics?.length || 0 },
+        { 'Metric': 'Analysis Date', 'Value': new Date().toLocaleDateString() },
+        { 'Metric': 'Summary', 'Value': analysis.summary },
+      ];
+      const ws2 = XLSX.utils.json_to_sheet(summaryRows);
+      ws2['!cols'] = [{ wch: 30 }, { wch: 80 }];
+      XLSX.utils.book_append_sheet(wb, ws2, 'Analysis Summary');
+
+      // Sheet 3: Trend Comparison
+      if (analysis.trendMatch && analysis.trendMatch.categories.length > 0) {
+        const trendRows = analysis.trendMatch.categories.map((cat, i) => ({
+          'Category': cat,
+          'Curriculum Score': analysis.trendMatch.curriculumScore[i],
+          'Industry Demand': analysis.trendMatch.industryDemand[i],
+          'Gap': analysis.trendMatch.gap[i],
+        }));
+        const ws3 = XLSX.utils.json_to_sheet(trendRows);
+        ws3['!cols'] = [{ wch: 20 }, { wch: 18 }, { wch: 18 }, { wch: 10 }];
+        XLSX.utils.book_append_sheet(wb, ws3, 'Trend Comparison');
+      }
+
+      // Sheet 4: Outdated Topics
+      if (analysis.outdatedTopics && analysis.outdatedTopics.length > 0) {
+        const outdatedRows = analysis.outdatedTopics.map(ot => ({
+          'Week': ot.week,
+          'Topic': ot.topic,
+          'Reason': ot.reason,
+        }));
+        const ws4 = XLSX.utils.json_to_sheet(outdatedRows);
+        ws4['!cols'] = [{ wch: 8 }, { wch: 40 }, { wch: 60 }];
+        XLSX.utils.book_append_sheet(wb, ws4, 'Outdated Topics');
+      }
+
+      // Sheet 5: Recommended Topics
+      if (analysis.recommendedTopics && analysis.recommendedTopics.length > 0) {
+        const recRows = analysis.recommendedTopics.map(rt => ({
+          'Suggested Week': rt.suggestedWeek,
+          'Topic': rt.topic,
+          'Priority': rt.priority,
+          'Reason': rt.reason,
+        }));
+        const ws5 = XLSX.utils.json_to_sheet(recRows);
+        ws5['!cols'] = [{ wch: 14 }, { wch: 40 }, { wch: 12 }, { wch: 60 }];
+        XLSX.utils.book_append_sheet(wb, ws5, 'Recommended Topics');
+      }
+
+      const fileName = selectedCurriculum.fileName.replace(/\.[^.]+$/, '') + '_analysis.xlsx';
+      XLSX.writeFile(wb, fileName);
+    } catch (err) {
+      console.error('Download failed:', err);
+      setError('Failed to generate download file');
     }
   };
 
@@ -687,7 +839,7 @@ export default function Home() {
                 {/* Curriculum Header */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   <div className="space-y-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <h2 className="text-2xl font-bold tracking-tight">
                         {selectedCurriculum.fileName}
                       </h2>
@@ -701,45 +853,56 @@ export default function Home() {
                       })}
                     </p>
                   </div>
-                  {!analysis && (
-                    <Button
-                      className="gap-2 bg-emerald-600 hover:bg-emerald-700"
-                      onClick={handleAnalyze}
-                      disabled={analyzing}
-                    >
-                      {analyzing ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Analyzing with AI...
-                        </>
-                      ) : (
-                        <>
-                          <Brain className="h-4 w-4" />
-                          Analyze Curriculum
-                        </>
-                      )}
-                    </Button>
-                  )}
-                  {analysis && (
-                    <Button
-                      variant="outline"
-                      className="gap-2"
-                      onClick={handleAnalyze}
-                      disabled={analyzing}
-                    >
-                      {analyzing ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Re-analyzing...
-                        </>
-                      ) : (
-                        <>
-                          <RefreshCw className="h-4 w-4" />
-                          Re-Analyze
-                        </>
-                      )}
-                    </Button>
-                  )}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {!analysis && (
+                      <Button
+                        className="gap-2 bg-emerald-600 hover:bg-emerald-700"
+                        onClick={handleAnalyze}
+                        disabled={analyzing}
+                      >
+                        {analyzing ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Analyzing with AI...
+                          </>
+                        ) : (
+                          <>
+                            <Brain className="h-4 w-4" />
+                            Analyze Curriculum
+                          </>
+                        )}
+                      </Button>
+                    )}
+                    {analysis && (
+                      <>
+                        <Button
+                          variant="outline"
+                          className="gap-2"
+                          onClick={handleAnalyze}
+                          disabled={analyzing}
+                        >
+                          {analyzing ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Re-analyzing...
+                            </>
+                          ) : (
+                            <>
+                              <RefreshCw className="h-4 w-4" />
+                              Re-Analyze
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          className="gap-2 bg-emerald-600 hover:bg-emerald-700"
+                          onClick={handleDownloadXLS}
+                        >
+                          <FileDown className="h-4 w-4" />
+                          Download Analysis (XLS)
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </div>
 
                 {/* Analyzing State */}
@@ -1176,63 +1339,24 @@ export default function Home() {
                   </CardContent>
                 </Card>
 
-                {/* Stream Mapping */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Layers className="h-5 w-5 text-emerald-600" />
-                      Stream Mapping & Placement Insights
-                    </CardTitle>
-                    <CardDescription>How your curriculum maps to current placement requirements and industry streams</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {/* Industry trend highlights */}
-                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                      {[
-                        { label: 'AI/ML Coverage', value: analysis.trendMatch?.curriculumScore[analysis.trendMatch?.categories.indexOf('AI/ML') || 0] || 0, icon: '🤖' },
-                        { label: 'Cloud Computing', value: analysis.trendMatch?.curriculumScore[analysis.trendMatch?.categories.indexOf('Cloud') || 0] || 0, icon: '☁️' },
-                        { label: 'DevOps Practices', value: analysis.trendMatch?.curriculumScore[analysis.trendMatch?.categories.indexOf('DevOps') || 0] || 0, icon: '🔧' },
-                        { label: 'Security', value: analysis.trendMatch?.curriculumScore[analysis.trendMatch?.categories.indexOf('Security') || 0] || 0, icon: '🔒' },
-                      ].map((item, i) => (
-                        <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                          <span className="text-2xl">{item.icon}</span>
-                          <div className="flex-1">
-                            <p className="text-xs text-muted-foreground">{item.label}</p>
-                            <p className="font-bold text-lg">{item.value}%</p>
-                          </div>
-                          {item.value < 50 && (
-                            <TrendingDown className="h-4 w-4 text-red-500" />
-                          )}
-                          {item.value >= 50 && item.value < 75 && (
-                            <TrendingUp className="h-4 w-4 text-amber-500" />
-                          )}
-                          {item.value >= 75 && (
-                            <TrendingUp className="h-4 w-4 text-emerald-500" />
-                          )}
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="bg-muted/50 rounded-lg p-4 space-y-3">
-                      <h4 className="font-semibold text-sm">Placement Readiness Assessment</h4>
-                      <div className="grid gap-2">
-                        {analysis.trendMatch?.categories.map((cat, i) => {
-                          const gap = analysis.trendMatch.gap[i];
-                          const score = analysis.trendMatch.curriculumScore[i];
-                          return (
-                            <div key={cat} className="flex items-center gap-3">
-                              <span className="text-sm w-32 shrink-0 truncate">{cat}</span>
-                              <Progress
-                                value={score}
-                                className={`h-2 flex-1 ${gap > 20 ? '[&>div]:bg-red-500' : gap > 0 ? '[&>div]:bg-amber-500' : '[&>div]:bg-emerald-500'}`}
-                              />
-                              <span className="text-xs text-muted-foreground w-16 text-right">
-                                {gap > 0 ? `-${gap} gap` : 'On track'}
-                              </span>
-                            </div>
-                          );
-                        })}
+                {/* Download Updated Curriculum XLS */}
+                <Card className="border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50">
+                  <CardContent className="py-6">
+                    <div className="flex flex-col sm:flex-row items-center gap-4">
+                      <div className="w-14 h-14 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
+                        <FileDown className="h-7 w-7 text-emerald-600" />
                       </div>
+                      <div className="flex-1 text-center sm:text-left">
+                        <h3 className="font-semibold text-emerald-900">Download Updated Curriculum</h3>
+                        <p className="text-sm text-emerald-700 mt-0.5">Get a complete XLS file with outdated topics marked, recommended topics added, and full analysis report across 5 sheets</p>
+                      </div>
+                      <Button
+                        className="gap-2 bg-emerald-600 hover:bg-emerald-700 shrink-0"
+                        onClick={handleDownloadXLS}
+                      >
+                        <Download className="h-4 w-4" />
+                        Download XLS
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
