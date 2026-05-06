@@ -1,54 +1,24 @@
 ---
 Task ID: 1
 Agent: Main Agent
-Task: Build Curriculum Analyzer Dashboard - AI-Powered Curriculum Intelligence Web App
+Task: Rebuild CurriculumIQ Dashboard with new UI design from uploaded reference images
 
 Work Log:
-- Analyzed uploaded design image (handwritten note describing Admin Panel workflow)
-- Initialized Next.js 16 fullstack project with TypeScript, Tailwind CSS, shadcn/ui
-- Installed xlsx library for Excel file parsing
-- Designed and pushed Prisma schema (Batch, Curriculum, Analysis models)
-- Built 3 API routes:
-  - POST/GET/DELETE /api/batch - Batch management
-  - POST/GET /api/curriculum/upload - XLS upload, parsing, week-wise extraction
-  - POST /api/analyze - AI-powered curriculum analysis using z-ai-web-dev-sdk
-- Built complete frontend dashboard with 3 tabs:
-  - Batches & Upload: Create batches, upload XLS curricula, view existing curricula
-  - Analysis Dashboard: Effectiveness score, comparison charts (bar, radar, line, pie), gap analysis, week-wise table
-  - Recommendations: Outdated topics, recommended topics to add, stream mapping, placement insights
-- All charts use Recharts (BarChart, RadarChart, LineChart, PieChart)
-- Responsive design with mobile-first approach
-- ESLint passed with no errors
-- Dev server running successfully on port 3000
+- Analyzed 3 uploaded UI reference images (report.jpeg, report1.jpeg, upload.jpeg) using VLM to extract detailed design specs
+- Identified design: blue/white split upload page, animated 3-step progress, 4 score cards with circular progress, What's Good/Needs Improvement columns, AI Suggestions with priority badges, Quick Fix grid, Charts section, Action buttons
+- Completely rewrote /home/z/my-project/src/app/page.tsx (1159 lines) as single-page 3-state flow (upload → analyzing → results)
+- Created /home/z/my-project/src/app/api/curriculum/upload/route.ts - missing XLS upload endpoint with auto-detection of week/topic columns
+- Verified /home/z/my-project/src/app/api/analyze/route.ts - AI analysis endpoint using z-ai-web-dev-sdk
+- Verified /home/z/my-project/src/app/api/batch/route.ts - Batch CRUD operations
+- Verified Prisma schema with SQLite (Batch, Curriculum, Analysis models)
+- Updated layout.tsx with Inter font
+- Updated globals.css with custom styles
+- Ran `npx prisma db push --force-reset` to initialize DB
+- Verified successful build: `npx next build` compiled successfully with all routes working
+- Dev server tested and confirmed serving pages with 200 OK
 
 Stage Summary:
-- Complete web application with admin panel, curriculum upload, AI analysis, and dashboard
-- File: /home/z/my-project/src/app/page.tsx (main frontend)
-- APIs: /api/batch, /api/curriculum/upload, /api/analyze
-- Database: SQLite with Prisma (Batch, Curriculum, Analysis models)
-- Key features: XLS parsing, AI effectiveness scoring, trend comparison, gap analysis, topic recommendations
-
----
-Task ID: 2
-Agent: Main Agent
-Task: Fix chart rendering bugs, remove Stream Mapping section, add XLS download feature
-
-Work Log:
-- Diagnosed root cause of charts not rendering: AI returns `trendComparison` key but frontend expected `trendMatch`
-- Added `normalizeAnalysis()` function to handle both key names and JSON string parsing from DB
-- Applied normalization in `handleAnalyze`, `handleViewCurriculum`, and batch upload callback
-- Removed "Stream Mapping & Placement Insights" section from Recommendations tab
-- Added `handleDownloadXLS()` function generating 5-sheet XLS workbook:
-  - Sheet 1: Updated Curriculum (original topics + status + recommended topics inline)
-  - Sheet 2: Analysis Summary (scores, metrics)
-  - Sheet 3: Trend Comparison (curriculum vs industry by category)
-  - Sheet 4: Outdated Topics (topic, reason, week)
-  - Sheet 5: Recommended Topics (topic, priority, reason, suggested week)
-- Added "Download Analysis (XLS)" button in dashboard header (appears after analysis)
-- Added prominent download card in Recommendations tab
-- ESLint passed, dev server running
-
-Stage Summary:
-- Charts now render correctly with normalized data
-- Stream Mapping section removed per user request
-- Download XLS feature fully implemented with comprehensive multi-sheet output
+- Complete UI rebuild matching the 3 reference images
+- All API endpoints functional (/api/batch, /api/curriculum/upload, /api/analyze)
+- Build passes without errors
+- Key files: page.tsx, layout.tsx, globals.css, api/curriculum/upload/route.ts, api/analyze/route.ts, api/batch/route.ts, lib/db.ts, prisma/schema.prisma

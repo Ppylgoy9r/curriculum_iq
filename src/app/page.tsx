@@ -1,18 +1,17 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Progress } from '@/components/ui/progress';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -23,35 +22,12 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-} from '@/components/ui/alert';
-import {
   BarChart,
   Bar,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
   RadarChart,
   PolarGrid,
@@ -60,74 +36,33 @@ import {
   Radar,
   LineChart,
   Line,
-  PieChart,
-  Pie,
-  Cell,
 } from 'recharts';
 import {
   Upload,
   FileSpreadsheet,
-  BarChart3,
-  Brain,
   GraduationCap,
   Plus,
-  Trash2,
-  RefreshCw,
-  TrendingUp,
-  TrendingDown,
-  AlertTriangle,
   CheckCircle2,
+  AlertTriangle,
   Sparkles,
-  BookOpen,
-  Target,
-  Lightbulb,
-  ChevronRight,
-  Loader2,
-  Layers,
-  Zap,
-  ArrowLeftRight,
   Download,
-  FileDown,
+  Eye,
+  ArrowRight,
+  Paperclip,
+  Loader2,
+  Shield,
+  TrendingUp,
+  BookOpen,
+  Lightbulb,
+  Target,
+  X,
+  Brain,
+  ChevronDown,
+  RefreshCw,
+  BarChart3,
+  Zap,
 } from 'lucide-react';
-
-// ==================== Data Normalization ====================
-function normalizeAnalysis(raw: any): Analysis | null {
-  if (!raw) return null;
-  try {
-    // The AI returns trendComparison; the DB stores it as stringified trendMatch
-    const trendMatch = raw.trendMatch
-      ? (typeof raw.trendMatch === 'string' ? JSON.parse(raw.trendMatch) : raw.trendMatch)
-      : raw.trendComparison
-        ? (typeof raw.trendComparison === 'string' ? JSON.parse(raw.trendComparison) : raw.trendComparison)
-        : { categories: [], curriculumScore: [], industryDemand: [], gap: [] };
-
-    const outdatedTopics = raw.outdatedTopics
-      ? (typeof raw.outdatedTopics === 'string' ? JSON.parse(raw.outdatedTopics) : raw.outdatedTopics)
-      : [];
-
-    const recommendedTopics = raw.recommendedTopics
-      ? (typeof raw.recommendedTopics === 'string' ? JSON.parse(raw.recommendedTopics) : raw.recommendedTopics)
-      : [];
-
-    const weekAnalysis = raw.weekAnalysis
-      ? (typeof raw.weekAnalysis === 'string' ? JSON.parse(raw.weekAnalysis) : raw.weekAnalysis)
-      : [];
-
-    return {
-      id: raw.id || '',
-      effectivenessScore: raw.effectivenessScore || 0,
-      overallScore: raw.overallScore || 0,
-      trendMatch: trendMatch as TrendComparison,
-      outdatedTopics: outdatedTopics as OutdatedTopic[],
-      recommendedTopics: recommendedTopics as RecommendedTopic[],
-      weekAnalysis: weekAnalysis as WeekAnalysis[],
-      summary: raw.summary || '',
-    };
-  } catch (e) {
-    console.error('Failed to normalize analysis:', e);
-    return null;
-  }
-}
+import { motion, AnimatePresence } from 'framer-motion';
 
 // ==================== Types ====================
 interface WeekData {
@@ -151,6 +86,7 @@ interface Curriculum {
   weekData: string;
   analysis: Analysis | null;
   createdAt: string;
+  batch?: Batch;
 }
 
 interface Analysis {
@@ -191,31 +127,109 @@ interface WeekAnalysis {
   notes: string;
 }
 
-// ==================== Main App ====================
+type ViewState = 'upload' | 'analyzing' | 'results';
+
+// ==================== Data Normalization ====================
+function normalizeAnalysis(raw: any): Analysis | null {
+  if (!raw) return null;
+  try {
+    const trendMatch = raw.trendMatch
+      ? (typeof raw.trendMatch === 'string' ? JSON.parse(raw.trendMatch) : raw.trendMatch)
+      : raw.trendComparison
+        ? (typeof raw.trendComparison === 'string' ? JSON.parse(raw.trendComparison) : raw.trendComparison)
+        : { categories: [], curriculumScore: [], industryDemand: [], gap: [] };
+
+    const outdatedTopics = raw.outdatedTopics
+      ? (typeof raw.outdatedTopics === 'string' ? JSON.parse(raw.outdatedTopics) : raw.outdatedTopics)
+      : [];
+
+    const recommendedTopics = raw.recommendedTopics
+      ? (typeof raw.recommendedTopics === 'string' ? JSON.parse(raw.recommendedTopics) : raw.recommendedTopics)
+      : [];
+
+    const weekAnalysis = raw.weekAnalysis
+      ? (typeof raw.weekAnalysis === 'string' ? JSON.parse(raw.weekAnalysis) : raw.weekAnalysis)
+      : [];
+
+    return {
+      id: raw.id || '',
+      effectivenessScore: raw.effectivenessScore || 0,
+      overallScore: raw.overallScore || 0,
+      trendMatch: trendMatch as TrendComparison,
+      outdatedTopics: outdatedTopics as OutdatedTopic[],
+      recommendedTopics: recommendedTopics as RecommendedTopic[],
+      weekAnalysis: weekAnalysis as WeekAnalysis[],
+      summary: raw.summary || '',
+    };
+  } catch (e) {
+    console.error('Failed to normalize analysis:', e);
+    return null;
+  }
+}
+
+// ==================== Circular Progress Component ====================
+function CircularProgress({ value, size = 120, strokeWidth = 10 }: { value: number; size?: number; strokeWidth?: number }) {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (value / 100) * circumference;
+  const color = value >= 75 ? '#10B981' : value >= 50 ? '#F59E0B' : '#EF4444';
+
+  return (
+    <div className="relative inline-flex items-center justify-center">
+      <svg width={size} height={size} className="-rotate-90">
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="#E5E7EB"
+          strokeWidth={strokeWidth}
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke={color}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          className="transition-all duration-1000 ease-out"
+        />
+      </svg>
+      <div className="absolute flex flex-col items-center justify-center">
+        <span className="text-2xl font-bold" style={{ color }}>{value}%</span>
+        <span className="text-[10px] text-gray-500 uppercase tracking-wide">Score</span>
+      </div>
+    </div>
+  );
+}
+
+// ==================== Main Component ====================
 export default function Home() {
-  const [activeTab, setActiveTab] = useState('batches');
+  const [view, setView] = useState<ViewState>('upload');
   const [batches, setBatches] = useState<Batch[]>([]);
-  const [selectedBatch, setSelectedBatch] = useState<Batch | null>(null);
-  const [selectedCurriculum, setSelectedCurriculum] = useState<Curriculum | null>(null);
-  const [analysis, setAnalysis] = useState<Analysis | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [analyzing, setAnalyzing] = useState(false);
+  const [selectedBatchId, setSelectedBatchId] = useState('');
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analysis, setAnalysis] = useState<Analysis | null>(null);
+  const [curriculum, setCurriculum] = useState<Curriculum | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Dialog states
+  // Create batch dialog
   const [createBatchOpen, setCreateBatchOpen] = useState(false);
   const [newBatchName, setNewBatchName] = useState('');
   const [newBatchDesc, setNewBatchDesc] = useState('');
 
-  // Upload states
-  const [uploadBatchId, setUploadBatchId] = useState('');
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  // Analyze step tracker
+  const [analyzeStep, setAnalyzeStep] = useState(0);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load batches
   const loadBatches = useCallback(async () => {
-    setLoading(true);
     try {
       const res = await fetch('/api/batch');
       if (res.ok) {
@@ -224,8 +238,6 @@ export default function Home() {
       }
     } catch (err) {
       console.error('Failed to load batches:', err);
-    } finally {
-      setLoading(false);
     }
   }, []);
 
@@ -253,30 +265,16 @@ export default function Home() {
     }
   };
 
-  // Delete batch
-  const handleDeleteBatch = async (id: string) => {
-    try {
-      await fetch(`/api/batch?id=${id}`, { method: 'DELETE' });
-      await loadBatches();
-      if (selectedBatch?.id === id) {
-        setSelectedBatch(null);
-        setSelectedCurriculum(null);
-        setAnalysis(null);
-      }
-    } catch (err) {
-      console.error('Failed to delete batch:', err);
-    }
-  };
-
-  // Upload curriculum
-  const handleUpload = async () => {
-    if (!uploadFile || !uploadBatchId) return;
+  // Upload + Analyze flow
+  const handleUploadAndAnalyze = async () => {
+    if (!uploadFile || !selectedBatchId) return;
     setUploading(true);
     setError(null);
+
     try {
       const formData = new FormData();
       formData.append('file', uploadFile);
-      formData.append('batchId', uploadBatchId);
+      formData.append('batchId', selectedBatchId);
 
       const res = await fetch('/api/curriculum/upload', {
         method: 'POST',
@@ -286,85 +284,86 @@ export default function Home() {
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || 'Upload failed');
+        setUploading(false);
         return;
       }
 
-      await loadBatches();
-      setUploadDialogOpen(false);
-      setUploadFile(null);
+      setCurriculum(data.curriculum);
+      setView('analyzing');
+      setUploading(false);
 
-      // Select the uploaded curriculum
-      const updatedBatch = batches.find(b => b.id === uploadBatchId);
-      if (updatedBatch) {
-        setSelectedBatch(updatedBatch);
-        // Re-fetch to get updated curricula
-        const batchRes = await fetch('/api/batch');
-        if (batchRes.ok) {
-          const allBatches = await batchRes.json();
-          const freshBatch = allBatches.find((b: Batch) => b.id === uploadBatchId);
-          if (freshBatch && freshBatch.curricula.length > 0) {
-            const latestCurriculum = freshBatch.curricula[freshBatch.curricula.length - 1];
-            setSelectedCurriculum(latestCurriculum);
-            if (latestCurriculum.analysis) {
-              setAnalysis(normalizeAnalysis(latestCurriculum.analysis));
-            }
-          }
-        }
-      }
+      // Start analyzing automatically
+      await runAnalysis(data.curriculum.id);
     } catch (err) {
       setError('Failed to upload curriculum');
-    } finally {
       setUploading(false);
     }
   };
 
-  // Analyze curriculum
-  const handleAnalyze = async () => {
-    if (!selectedCurriculum) return;
+  const runAnalysis = async (curriculumId: string) => {
     setAnalyzing(true);
-    setError(null);
+    setAnalyzeStep(1);
+
     try {
+      setAnalyzeStep(2);
       const res = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ curriculumId: selectedCurriculum.id }),
+        body: JSON.stringify({ curriculumId }),
       });
+
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || 'Analysis failed');
+        setView('upload');
+        setAnalyzing(false);
         return;
       }
-      setAnalysis(normalizeAnalysis(data.analysis));
-      setActiveTab('dashboard');
+
+      setAnalyzeStep(3);
+      await new Promise(r => setTimeout(r, 800));
+
+      const normalized = normalizeAnalysis(data.analysis);
+      setAnalysis(normalized);
+      setView('results');
+      setAnalyzing(false);
     } catch (err) {
       setError('Failed to analyze curriculum');
-    } finally {
+      setView('upload');
       setAnalyzing(false);
     }
   };
 
-  // View curriculum analysis
-  const handleViewCurriculum = async (curriculum: Curriculum) => {
-    setSelectedCurriculum(curriculum);
-    const normalized = normalizeAnalysis(curriculum.analysis);
-    setAnalysis(normalized);
-    setActiveTab('dashboard');
+  // Re-analyze
+  const handleReAnalyze = async () => {
+    if (!curriculum) return;
+    setView('analyzing');
+    setAnalysis(null);
+    await runAnalysis(curriculum.id);
   };
 
-  // ==================== Download XLS ====================
+  // Change file (go back to upload)
+  const handleChangeFile = () => {
+    setView('upload');
+    setAnalysis(null);
+    setCurriculum(null);
+    setUploadFile(null);
+    setError(null);
+  };
+
+  // Download XLS
   const handleDownloadXLS = async () => {
-    if (!analysis || !selectedCurriculum) return;
+    if (!analysis || !curriculum) return;
     try {
       const XLSX = await import('xlsx');
       const wb = XLSX.utils.book_new();
 
-      // Sheet 1: Updated Curriculum with Recommendations
-      const weekDataRaw = selectedCurriculum.weekData;
+      const weekDataRaw = curriculum.weekData;
       const weekData: WeekData[] = typeof weekDataRaw === 'string' ? JSON.parse(weekDataRaw) : weekDataRaw || [];
 
       const curriculumRows: Record<string, string | number>[] = [];
       weekData.forEach(w => {
-        w.topics.forEach((t, idx) => {
+        w.topics.forEach((t) => {
           const weekNote = analysis.weekAnalysis?.find(wa => wa.week === w.week);
           const isOutdated = analysis.outdatedTopics?.some(ot => ot.week === w.week && ot.topic.toLowerCase().includes(t.toLowerCase()));
           curriculumRows.push({
@@ -373,1006 +372,788 @@ export default function Home() {
             'Status': isOutdated ? 'OUTDATED - Replace' : (weekNote?.status || 'Current'),
             'Relevance Score': weekNote?.relevanceScore || '-',
             'Notes': weekNote?.notes || '',
-            'Action': isOutdated ? 'Remove or update this topic' : 'Keep as is',
           });
-        });
-        // Add recommended topics for this week
-        const recommended = analysis.recommendedTopics?.filter(rt => rt.suggestedWeek === w.week) || [];
-        recommended.forEach(rt => {
-          curriculumRows.push({
-            'Week': w.week,
-            'Topic': rt.topic,
-            'Status': 'NEW - Add',
-            'Relevance Score': '-',
-            'Notes': rt.reason,
-            'Action': `Add this topic (${rt.priority} priority)`,
-          });
-        });
-      });
-      // Add recommended topics that don't match existing weeks
-      const existingWeeks = new Set(weekData.map(w => w.week));
-      const orphanRecs = (analysis.recommendedTopics || []).filter(rt => !existingWeeks.has(rt.suggestedWeek));
-      orphanRecs.forEach(rt => {
-        curriculumRows.push({
-          'Week': rt.suggestedWeek,
-          'Topic': rt.topic,
-          'Status': 'NEW - Add',
-          'Relevance Score': '-',
-          'Notes': rt.reason,
-          'Action': `Add this topic (${rt.priority} priority)`,
         });
       });
 
       const ws1 = XLSX.utils.json_to_sheet(curriculumRows);
-      ws1['!cols'] = [{ wch: 8 }, { wch: 40 }, { wch: 20 }, { wch: 16 }, { wch: 50 }, { wch: 40 }];
       XLSX.utils.book_append_sheet(wb, ws1, 'Updated Curriculum');
 
-      // Sheet 2: Analysis Summary
       const summaryRows: Record<string, string | number>[] = [
         { 'Metric': 'Effectiveness Score', 'Value': analysis.effectivenessScore + '%' },
         { 'Metric': 'Overall Quality Score', 'Value': analysis.overallScore + '%' },
-        { 'Metric': 'Total Weeks', 'Value': weekData.length },
-        { 'Metric': 'Outdated Topics', 'Value': analysis.outdatedTopics?.length || 0 },
-        { 'Metric': 'Recommended Additions', 'Value': analysis.recommendedTopics?.length || 0 },
-        { 'Metric': 'Analysis Date', 'Value': new Date().toLocaleDateString() },
         { 'Metric': 'Summary', 'Value': analysis.summary },
       ];
       const ws2 = XLSX.utils.json_to_sheet(summaryRows);
-      ws2['!cols'] = [{ wch: 30 }, { wch: 80 }];
-      XLSX.utils.book_append_sheet(wb, ws2, 'Analysis Summary');
+      XLSX.utils.book_append_sheet(wb, ws2, 'Summary');
 
-      // Sheet 3: Trend Comparison
-      if (analysis.trendMatch && analysis.trendMatch.categories.length > 0) {
-        const trendRows = analysis.trendMatch.categories.map((cat, i) => ({
-          'Category': cat,
-          'Curriculum Score': analysis.trendMatch.curriculumScore[i],
-          'Industry Demand': analysis.trendMatch.industryDemand[i],
-          'Gap': analysis.trendMatch.gap[i],
-        }));
-        const ws3 = XLSX.utils.json_to_sheet(trendRows);
-        ws3['!cols'] = [{ wch: 20 }, { wch: 18 }, { wch: 18 }, { wch: 10 }];
-        XLSX.utils.book_append_sheet(wb, ws3, 'Trend Comparison');
-      }
-
-      // Sheet 4: Outdated Topics
-      if (analysis.outdatedTopics && analysis.outdatedTopics.length > 0) {
-        const outdatedRows = analysis.outdatedTopics.map(ot => ({
-          'Week': ot.week,
-          'Topic': ot.topic,
-          'Reason': ot.reason,
-        }));
-        const ws4 = XLSX.utils.json_to_sheet(outdatedRows);
-        ws4['!cols'] = [{ wch: 8 }, { wch: 40 }, { wch: 60 }];
-        XLSX.utils.book_append_sheet(wb, ws4, 'Outdated Topics');
-      }
-
-      // Sheet 5: Recommended Topics
-      if (analysis.recommendedTopics && analysis.recommendedTopics.length > 0) {
-        const recRows = analysis.recommendedTopics.map(rt => ({
-          'Suggested Week': rt.suggestedWeek,
-          'Topic': rt.topic,
-          'Priority': rt.priority,
-          'Reason': rt.reason,
-        }));
-        const ws5 = XLSX.utils.json_to_sheet(recRows);
-        ws5['!cols'] = [{ wch: 14 }, { wch: 40 }, { wch: 12 }, { wch: 60 }];
-        XLSX.utils.book_append_sheet(wb, ws5, 'Recommended Topics');
-      }
-
-      const fileName = selectedCurriculum.fileName.replace(/\.[^.]+$/, '') + '_analysis.xlsx';
+      const fileName = curriculum.fileName.replace(/\.[^.]+$/, '') + '_analysis.xlsx';
       XLSX.writeFile(wb, fileName);
     } catch (err) {
       console.error('Download failed:', err);
-      setError('Failed to generate download file');
     }
   };
 
-  // ==================== Chart Data Helpers ====================
-  const getComparisonData = () => {
-    if (!analysis?.trendMatch) return [];
-    return analysis.trendMatch.categories.map((cat, i) => ({
-      category: cat,
-      'Curriculum Score': analysis.trendMatch.curriculumScore[i],
-      'Industry Demand': analysis.trendMatch.industryDemand[i],
-      'Gap': analysis.trendMatch.gap[i],
-    }));
-  };
+  // ==================== Derived Data ====================
+  const weekData: WeekData[] = curriculum?.weekData
+    ? (typeof curriculum.weekData === 'string' ? JSON.parse(curriculum.weekData) : curriculum.weekData)
+    : [];
 
-  const getRadarData = () => {
-    if (!analysis?.trendMatch) return [];
-    return analysis.trendMatch.categories.map((cat, i) => ({
-      category: cat,
-      'Curriculum': analysis.trendMatch.curriculumScore[i],
-      'Industry': analysis.trendMatch.industryDemand[i],
-    }));
-  };
-
-  const getWeekScoreData = () => {
-    if (!analysis?.weekAnalysis) return [];
-    return analysis.weekAnalysis.map(w => ({
-      week: `W${w.week}`,
-      'Relevance Score': w.relevanceScore,
-    }));
-  };
-
-  const getStatusDistribution = () => {
-    if (!analysis?.weekAnalysis) return [];
-    const counts: Record<string, number> = {};
-    analysis.weekAnalysis.forEach(w => {
-      counts[w.status] = (counts[w.status] || 0) + 1;
-    });
-    return Object.entries(counts).map(([name, value]) => ({ name, value }));
-  };
-
-  const COLORS = ['#22c55e', '#f59e0b', '#ef4444', '#3b82f6'];
+  const allTopics = weekData.flatMap(w => w.topics);
+  const uniqueTopics = [...new Set(allTopics)];
 
   const getScoreColor = (score: number) => {
-    if (score >= 75) return 'text-emerald-600';
-    if (score >= 50) return 'text-amber-500';
-    return 'text-red-500';
+    if (score >= 75) return '#10B981';
+    if (score >= 50) return '#F59E0B';
+    return '#EF4444';
   };
 
-  const getScoreBgColor = (score: number) => {
-    if (score >= 75) return 'bg-emerald-500';
-    if (score >= 50) return 'bg-amber-500';
-    return 'bg-red-500';
+  const getScoreLabel = (score: number) => {
+    if (score >= 75) return 'Excellent';
+    if (score >= 50) return 'Needs Improvement';
+    return 'Critical Review';
   };
 
   const getPriorityColor = (priority: string) => {
     switch (priority.toLowerCase()) {
-      case 'high': return 'destructive';
-      case 'medium': return 'default';
-      default: return 'secondary';
+      case 'high': return 'bg-red-100 text-red-700 border-red-200';
+      case 'medium': return 'bg-orange-100 text-orange-700 border-orange-200';
+      default: return 'bg-yellow-100 text-yellow-700 border-yellow-200';
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'current': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
-      case 'outdated': return 'bg-red-100 text-red-700 border-red-200';
-      case 'needs_update': return 'bg-amber-100 text-amber-700 border-amber-200';
-      default: return 'bg-gray-100 text-gray-700 border-gray-200';
-    }
+  const getStatusBadge = (score: number) => {
+    if (score >= 75) return { text: 'Good Standing', color: 'bg-green-100 text-green-700 border-green-200', dot: 'bg-green-500' };
+    if (score >= 50) return { text: 'Moderate', color: 'bg-amber-100 text-amber-700 border-amber-200', dot: 'bg-amber-500' };
+    return { text: 'Needs Attention', color: 'bg-red-100 text-red-700 border-red-200', dot: 'bg-red-500' };
   };
+
+  const whatIsGood = analysis?.weekAnalysis
+    ?.filter(w => w.status === 'current' && w.relevanceScore >= 70)
+    .slice(0, 5)
+    .map(w => ({ week: w.week, note: w.notes || `Week ${w.week} content is well-aligned` })) || [];
+
+  const needsImprovement = analysis?.outdatedTopics?.slice(0, 5) || [];
+
+  const aiSuggestions = analysis?.recommendedTopics?.slice(0, 3) || [];
+  const quickFixes = analysis?.recommendedTopics?.slice(3, 7) || [];
+
+  const comparisonData = analysis?.trendMatch?.categories?.map((cat, i) => ({
+    category: cat,
+    Curriculum: analysis.trendMatch.curriculumScore[i],
+    Industry: analysis.trendMatch.industryDemand[i],
+  })) || [];
+
+  const weekScoreData = analysis?.weekAnalysis?.map(w => ({
+    week: `W${w.week}`,
+    score: w.relevanceScore,
+  })) || [];
 
   // ==================== Render ====================
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
-        <div className="max-w-[1600px] mx-auto flex h-16 items-center px-4 md:px-6 gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
-              <GraduationCap className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold tracking-tight">CurriculumIQ</h1>
-              <p className="text-xs text-muted-foreground hidden sm:block">AI-Powered Curriculum Intelligence</p>
-            </div>
-          </div>
-          <div className="flex-1" />
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => { setActiveTab('batches'); loadBatches(); }}
-            className="gap-2"
-          >
-            <RefreshCw className="h-3.5 w-3.5" />
-            Refresh
-          </Button>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="flex-1 max-w-[1600px] mx-auto w-full px-4 md:px-6 py-6">
+      {/* Error Toast */}
+      <AnimatePresence>
         {error && (
-          <Alert variant="destructive" className="mb-6">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Error</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
-            <Button variant="ghost" size="sm" onClick={() => setError(null)} className="ml-auto">Dismiss</Button>
-          </Alert>
-        )}
-
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-6">
-            <TabsTrigger value="batches" className="gap-2">
-              <Layers className="h-4 w-4 hidden sm:block" />
-              Batches & Upload
-            </TabsTrigger>
-            <TabsTrigger value="dashboard" className="gap-2" disabled={!selectedCurriculum}>
-              <BarChart3 className="h-4 w-4 hidden sm:block" />
-              Analysis Dashboard
-            </TabsTrigger>
-            <TabsTrigger value="recommendations" className="gap-2" disabled={!analysis}>
-              <Lightbulb className="h-4 w-4 hidden sm:block" />
-              Recommendations
-            </TabsTrigger>
-          </TabsList>
-
-          {/* ==================== Tab 1: Batches & Upload ==================== */}
-          <TabsContent value="batches" className="space-y-6">
-            {/* Create Batch */}
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold tracking-tight">Admin Panel</h2>
-                <p className="text-muted-foreground">Manage batches, upload curricula, and analyze effectiveness</p>
-              </div>
-              <Dialog open={createBatchOpen} onOpenChange={setCreateBatchOpen}>
-                <DialogTrigger asChild>
-                  <Button className="gap-2 bg-emerald-600 hover:bg-emerald-700">
-                    <Plus className="h-4 w-4" />
-                    Create Batch
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Create New Batch</DialogTitle>
-                    <DialogDescription>Add a new batch to organize your curricula.</DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="batch-name">Batch Name *</Label>
-                      <Input
-                        id="batch-name"
-                        placeholder="e.g., Computer Science 2025"
-                        value={newBatchName}
-                        onChange={e => setNewBatchName(e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="batch-desc">Description</Label>
-                      <Textarea
-                        id="batch-desc"
-                        placeholder="Optional description of the batch"
-                        value={newBatchDesc}
-                        onChange={e => setNewBatchDesc(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setCreateBatchOpen(false)}>Cancel</Button>
-                    <Button
-                      className="bg-emerald-600 hover:bg-emerald-700"
-                      onClick={handleCreateBatch}
-                      disabled={!newBatchName.trim()}
-                    >
-                      Create Batch
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed top-4 right-4 z-[100] bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3 max-w-md shadow-lg"
+          >
+            <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5 shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-red-800">Error</p>
+              <p className="text-sm text-red-600 mt-0.5">{error}</p>
             </div>
+            <button onClick={() => setError(null)} className="text-red-400 hover:text-red-600">
+              <X className="h-4 w-4" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-            {/* Batch List */}
-            {loading ? (
-              <div className="flex items-center justify-center py-20">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              </div>
-            ) : batches.length === 0 ? (
-              <Card className="py-20">
-                <CardContent className="flex flex-col items-center gap-4 text-center">
-                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
-                    <GraduationCap className="h-8 w-8 text-muted-foreground" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-lg">No batches yet</h3>
-                    <p className="text-muted-foreground mt-1">Create your first batch to get started with curriculum analysis.</p>
-                  </div>
-                  <Button className="gap-2 bg-emerald-600 hover:bg-emerald-700" onClick={() => setCreateBatchOpen(true)}>
-                    <Plus className="h-4 w-4" />
-                    Create First Batch
-                  </Button>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {batches.map(batch => (
-                  <Card key={batch.id} className="relative group">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-1">
-                          <CardTitle className="text-lg">{batch.name}</CardTitle>
-                          {batch.description && (
-                            <CardDescription className="line-clamp-2">{batch.description}</CardDescription>
-                          )}
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={() => handleDeleteBatch(batch.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <FileSpreadsheet className="h-4 w-4" />
-                        <span>{batch.curricula?.length || 0} curriculum{(batch.curricula?.length || 0) !== 1 ? 's' : ''}</span>
-                      </div>
+      {/* ==================== UPLOAD VIEW ==================== */}
+      {view === 'upload' && (
+        <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
+          {/* Background - split diagonal */}
+          <div className="absolute inset-0 bg-gradient-to-br from-[#2563EB] via-[#2563EB] to-[#1E40AF]" />
+          <div
+            className="absolute inset-0 bg-white"
+            style={{
+              clipPath: 'polygon(55% 0%, 100% 0%, 100% 100%, 35% 100%)',
+            }}
+          />
 
-                      {/* Curriculum list in batch */}
-                      {batch.curricula && batch.curricula.length > 0 && (
-                        <div className="space-y-2">
-                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Curricula</p>
-                          {batch.curricula.map(cur => (
-                            <div
-                              key={cur.id}
-                              className="flex items-center justify-between p-2 rounded-md bg-muted/50 hover:bg-muted transition-colors cursor-pointer"
-                              onClick={() => handleViewCurriculum(cur)}
-                            >
-                              <div className="flex items-center gap-2 min-w-0">
-                                <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-                                <span className="text-sm truncate">{cur.fileName}</span>
-                              </div>
-                              <div className="flex items-center gap-2 shrink-0 ml-2">
-                                {cur.analysis && (
-                                  <Badge variant={cur.analysis.effectivenessScore >= 70 ? 'default' : 'destructive'} className="text-xs">
-                                    {cur.analysis.effectivenessScore}%
-                                  </Badge>
-                                )}
-                                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Upload button for this batch */}
-                      <Button
-                        variant="outline"
-                        className="w-full gap-2"
-                        onClick={() => {
-                          setUploadBatchId(batch.id);
-                          setUploadDialogOpen(true);
-                        }}
-                      >
-                        <Upload className="h-3.5 w-3.5" />
-                        Upload Curriculum (XLS)
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-
-            {/* Upload Dialog */}
-            <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Upload Curriculum</DialogTitle>
-                  <DialogDescription>
-                    Upload an XLS/XLSX file containing week-wise curriculum topics. The system will automatically extract and organize the data.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label>Target Batch</Label>
-                    <Select value={uploadBatchId} onValueChange={setUploadBatchId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a batch" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {batches.map(b => (
-                          <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Curriculum File (XLS/XLSX)</Label>
-                    <div
-                      className="border-2 border-dashed rounded-lg p-8 text-center hover:border-emerald-500 hover:bg-emerald-50/50 transition-colors cursor-pointer"
-                      onClick={() => document.getElementById('file-input')?.click()}
-                    >
-                      {uploadFile ? (
-                        <div className="flex flex-col items-center gap-2">
-                          <FileSpreadsheet className="h-10 w-10 text-emerald-600" />
-                          <p className="text-sm font-medium">{uploadFile.name}</p>
-                          <p className="text-xs text-muted-foreground">{(uploadFile.size / 1024).toFixed(1)} KB</p>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                          <Upload className="h-10 w-10" />
-                          <p className="text-sm font-medium">Click to upload or drag & drop</p>
-                          <p className="text-xs">XLS, XLSX formats supported</p>
-                        </div>
-                      )}
-                      <input
-                        id="file-input"
-                        type="file"
-                        accept=".xls,.xlsx"
-                        className="hidden"
-                        onChange={e => setUploadFile(e.target.files?.[0] || null)}
-                      />
-                    </div>
-                  </div>
-                  <div className="bg-muted/50 rounded-md p-3 text-xs text-muted-foreground space-y-1">
-                    <p className="font-medium">Expected file format:</p>
-                    <p>Column 1: Week number (e.g., &quot;Week 1&quot;, &quot;Unit 1&quot;)</p>
-                    <p>Column 2: Topics covered in that week</p>
-                    <p>The system will auto-detect column headers.</p>
-                  </div>
+          {/* Upload Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="relative z-10 w-full max-w-[520px] mx-4"
+          >
+            <div className="bg-white rounded-2xl shadow-2xl p-8">
+              {/* Logo */}
+              <div className="flex justify-center mb-6">
+                <div className="w-14 h-14 rounded-xl bg-[#2563EB] flex items-center justify-center shadow-lg shadow-blue-200">
+                  <GraduationCap className="h-7 w-7 text-white" />
                 </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => { setUploadDialogOpen(false); setUploadFile(null); }}>Cancel</Button>
-                  <Button
-                    className="bg-emerald-600 hover:bg-emerald-700 gap-2"
-                    onClick={handleUpload}
-                    disabled={!uploadFile || !uploadBatchId || uploading}
+              </div>
+
+              {/* Heading */}
+              <h1 className="text-2xl font-bold text-[#1F2937] text-center mb-1">
+                Upload File
+              </h1>
+              <p className="text-[#6B7280] text-center text-base mb-8">
+                Upload your curriculum securely.
+              </p>
+
+              {/* Batch Selection */}
+              <div className="mb-5">
+                <Label className="text-sm font-medium text-[#374151] mb-2 block">
+                  Select Batch
+                </Label>
+                <Select value={selectedBatchId} onValueChange={setSelectedBatchId}>
+                  <SelectTrigger className="w-full h-11 bg-[#F8FAFC] border-[#E5E7EB]">
+                    <SelectValue placeholder="Choose a batch..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {batches.map(b => (
+                      <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* File Input Area */}
+              <div className="mb-4">
+                <Label className="text-sm font-medium text-[#374151] mb-2 block">
+                  Curriculum File
+                </Label>
+                <div className="flex items-center border border-[#E5E7EB] rounded-lg overflow-hidden h-11">
+                  <div className="flex-1 flex items-center px-4 gap-2 text-[#6B7280] min-w-0">
+                    <Paperclip className="h-4 w-4 shrink-0" />
+                    <span className="text-sm truncate">
+                      {uploadFile ? uploadFile.name : 'Choose a file to upload'}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="px-5 h-full bg-[#2563EB] text-white text-sm font-medium hover:bg-[#1D4ED8] transition-colors flex items-center gap-1.5 shrink-0"
                   >
-                    {uploading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Processing...
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="h-4 w-4" />
-                        Upload & Parse
-                      </>
-                    )}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </TabsContent>
-
-          {/* ==================== Tab 2: Analysis Dashboard ==================== */}
-          <TabsContent value="dashboard" className="space-y-6">
-            {!selectedCurriculum ? (
-              <Card className="py-20">
-                <CardContent className="flex flex-col items-center gap-4 text-center">
-                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
-                    <BarChart3 className="h-8 w-8 text-muted-foreground" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-lg">No curriculum selected</h3>
-                    <p className="text-muted-foreground mt-1">Go to the Batches tab and select a curriculum to analyze.</p>
-                  </div>
-                </CardContent>
-              </Card>
-            ) : (
-              <>
-                {/* Curriculum Header */}
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h2 className="text-2xl font-bold tracking-tight">
-                        {selectedCurriculum.fileName}
-                      </h2>
-                      {selectedCurriculum.batch && (
-                        <Badge variant="outline">{selectedCurriculum.batch.name}</Badge>
-                      )}
-                    </div>
-                    <p className="text-muted-foreground">
-                      Uploaded on {new Date(selectedCurriculum.createdAt).toLocaleDateString('en-US', {
-                        year: 'numeric', month: 'long', day: 'numeric'
-                      })}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {!analysis && (
-                      <Button
-                        className="gap-2 bg-emerald-600 hover:bg-emerald-700"
-                        onClick={handleAnalyze}
-                        disabled={analyzing}
-                      >
-                        {analyzing ? (
-                          <>
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            Analyzing with AI...
-                          </>
-                        ) : (
-                          <>
-                            <Brain className="h-4 w-4" />
-                            Analyze Curriculum
-                          </>
-                        )}
-                      </Button>
-                    )}
-                    {analysis && (
-                      <>
-                        <Button
-                          variant="outline"
-                          className="gap-2"
-                          onClick={handleAnalyze}
-                          disabled={analyzing}
-                        >
-                          {analyzing ? (
-                            <>
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                              Re-analyzing...
-                            </>
-                          ) : (
-                            <>
-                              <RefreshCw className="h-4 w-4" />
-                              Re-Analyze
-                            </>
-                          )}
-                        </Button>
-                        <Button
-                          className="gap-2 bg-emerald-600 hover:bg-emerald-700"
-                          onClick={handleDownloadXLS}
-                        >
-                          <FileDown className="h-4 w-4" />
-                          Download Analysis (XLS)
-                        </Button>
-                      </>
-                    )}
-                  </div>
+                    Browse
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".xls,.xlsx"
+                    className="hidden"
+                    onChange={e => {
+                      const file = e.target.files?.[0] || null;
+                      setUploadFile(file);
+                    }}
+                  />
                 </div>
+              </div>
 
-                {/* Analyzing State */}
-                {analyzing && (
-                  <Card className="border-emerald-200 bg-emerald-50/50">
-                    <CardContent className="py-12">
-                      <div className="flex flex-col items-center gap-4">
-                        <div className="relative">
-                          <div className="w-20 h-20 rounded-full border-4 border-emerald-200 flex items-center justify-center">
-                            <Brain className="h-10 w-10 text-emerald-600 animate-pulse" />
-                          </div>
-                          <Sparkles className="h-5 w-5 text-amber-500 absolute -top-1 -right-1 animate-bounce" />
-                        </div>
-                        <div className="text-center">
-                          <h3 className="font-semibold text-lg text-emerald-900">AI Analysis in Progress</h3>
-                          <p className="text-sm text-emerald-700 mt-1">Comparing curriculum against current industry trends...</p>
-                        </div>
-                        <div className="w-64">
-                          <Progress value={undefined} className="h-2" />
-                          <p className="text-xs text-muted-foreground mt-2 text-center">This may take 15-30 seconds</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
+              {/* Supported Formats */}
+              <p className="text-[#9CA3AF] text-center text-xs mb-6">
+                Supports: XLS, XLSX (Max 50MB)
+              </p>
 
-                {/* Analysis Results */}
-                {analysis && !analyzing && (
+              {/* Upload Button */}
+              <Button
+                onClick={handleUploadAndAnalyze}
+                disabled={!uploadFile || !selectedBatchId || uploading}
+                className="w-full h-12 bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-semibold rounded-lg gap-2 text-base"
+              >
+                {uploading ? (
                   <>
-                    {/* Summary */}
-                    <Alert className="border-emerald-200 bg-emerald-50/50">
-                      <Sparkles className="h-4 w-4 text-emerald-600" />
-                      <AlertTitle className="text-emerald-900">AI Analysis Summary</AlertTitle>
-                      <AlertDescription className="text-emerald-800">{analysis.summary}</AlertDescription>
-                    </Alert>
-
-                    {/* Score Cards */}
-                    <div className="grid gap-4 md:grid-cols-3">
-                      <Card className="border-l-4 border-l-emerald-500">
-                        <CardContent className="pt-6">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="text-sm font-medium text-muted-foreground">Effectiveness Score</p>
-                              <p className={`text-4xl font-bold mt-1 ${getScoreColor(analysis.effectivenessScore)}`}>
-                                {analysis.effectivenessScore}%
-                              </p>
-                            </div>
-                            <Target className={`h-12 w-12 ${analysis.effectivenessScore >= 70 ? 'text-emerald-200' : analysis.effectivenessScore >= 50 ? 'text-amber-200' : 'text-red-200'}`} />
-                          </div>
-                          <Progress value={analysis.effectivenessScore} className={`mt-3 h-2 ${getScoreBgColor(analysis.effectivenessScore)}`} />
-                          <p className="text-xs text-muted-foreground mt-2">
-                            {analysis.effectivenessScore >= 75 ? 'Great alignment with industry needs!' :
-                             analysis.effectivenessScore >= 50 ? 'Moderate alignment - some updates needed' :
-                             'Significant updates required'}
-                          </p>
-                        </CardContent>
-                      </Card>
-
-                      <Card className="border-l-4 border-l-blue-500">
-                        <CardContent className="pt-6">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="text-sm font-medium text-muted-foreground">Overall Quality</p>
-                              <p className={`text-4xl font-bold mt-1 ${getScoreColor(analysis.overallScore)}`}>
-                                {analysis.overallScore}%
-                              </p>
-                            </div>
-                            <Zap className={`h-12 w-12 ${analysis.overallScore >= 70 ? 'text-blue-200' : analysis.overallScore >= 50 ? 'text-amber-200' : 'text-red-200'}`} />
-                          </div>
-                          <Progress value={analysis.overallScore} className="mt-3 h-2 bg-blue-500" />
-                          <p className="text-xs text-muted-foreground mt-2">
-                            Based on content depth, coverage, and relevance
-                          </p>
-                        </CardContent>
-                      </Card>
-
-                      <Card className="border-l-4 border-l-purple-500">
-                        <CardContent className="pt-6">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="text-sm font-medium text-muted-foreground">Topics Status</p>
-                              <p className="text-4xl font-bold mt-1">
-                                {analysis.outdatedTopics?.length || 0}
-                                <span className="text-lg text-muted-foreground font-normal ml-1">outdated</span>
-                              </p>
-                            </div>
-                            <BookOpen className="h-12 w-12 text-purple-200" />
-                          </div>
-                          <div className="flex gap-2 mt-3">
-                            <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
-                              {analysis.recommendedTopics?.length || 0} to add
-                            </Badge>
-                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                              {selectedCurriculum.weekData ? JSON.parse(selectedCurriculum.weekData as string).length : 0} weeks
-                            </Badge>
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-2">
-                            Topics need updating for current standards
-                          </p>
-                        </CardContent>
-                      </Card>
-                    </div>
-
-                    {/* Charts Row */}
-                    <div className="grid gap-6 lg:grid-cols-2">
-                      {/* Comparison Bar Chart */}
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="flex items-center gap-2">
-                            <ArrowLeftRight className="h-5 w-5 text-emerald-600" />
-                            Curriculum vs Industry Demand
-                          </CardTitle>
-                          <CardDescription>Compare curriculum coverage with current industry requirements</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <ResponsiveContainer width="100%" height={320}>
-                            <BarChart data={getComparisonData()} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                              <CartesianGrid strokeDasharray="3 3" />
-                              <XAxis dataKey="category" tick={{ fontSize: 11 }} />
-                              <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
-                              <Tooltip
-                                contentStyle={{
-                                  backgroundColor: 'white',
-                                  border: '1px solid #e5e7eb',
-                                  borderRadius: '8px',
-                                  fontSize: '12px',
-                                }}
-                              />
-                              <Legend wrapperStyle={{ fontSize: '12px' }} />
-                              <Bar dataKey="Curriculum Score" fill="#10b981" radius={[4, 4, 0, 0]} />
-                              <Bar dataKey="Industry Demand" fill="#6366f1" radius={[4, 4, 0, 0]} />
-                            </BarChart>
-                          </ResponsiveContainer>
-                        </CardContent>
-                      </Card>
-
-                      {/* Radar Chart */}
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="flex items-center gap-2">
-                            <Target className="h-5 w-5 text-emerald-600" />
-                            Trend Coverage Radar
-                          </CardTitle>
-                          <CardDescription>Visual overview of curriculum alignment across technology domains</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <ResponsiveContainer width="100%" height={320}>
-                            <RadarChart cx="50%" cy="50%" outerRadius="75%" data={getRadarData()}>
-                              <PolarGrid />
-                              <PolarAngleAxis dataKey="category" tick={{ fontSize: 11 }} />
-                              <PolarRadiusAxis domain={[0, 100]} tick={{ fontSize: 10 }} />
-                              <Radar
-                                name="Curriculum"
-                                dataKey="Curriculum"
-                                stroke="#10b981"
-                                fill="#10b981"
-                                fillOpacity={0.3}
-                              />
-                              <Radar
-                                name="Industry"
-                                dataKey="Industry"
-                                stroke="#6366f1"
-                                fill="#6366f1"
-                                fillOpacity={0.15}
-                              />
-                              <Legend wrapperStyle={{ fontSize: '12px' }} />
-                              <Tooltip />
-                            </RadarChart>
-                          </ResponsiveContainer>
-                        </CardContent>
-                      </Card>
-                    </div>
-
-                    {/* Week-wise Analysis & Gap Chart */}
-                    <div className="grid gap-6 lg:grid-cols-3">
-                      {/* Week Relevance Line Chart */}
-                      <Card className="lg:col-span-2">
-                        <CardHeader>
-                          <CardTitle className="flex items-center gap-2">
-                            <TrendingUp className="h-5 w-5 text-emerald-600" />
-                            Week-wise Relevance Score
-                          </CardTitle>
-                          <CardDescription>How relevant each week&apos;s content is to current industry needs</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <ResponsiveContainer width="100%" height={280}>
-                            <LineChart data={getWeekScoreData()} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                              <CartesianGrid strokeDasharray="3 3" />
-                              <XAxis dataKey="week" tick={{ fontSize: 11 }} />
-                              <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
-                              <Tooltip
-                                contentStyle={{
-                                  backgroundColor: 'white',
-                                  border: '1px solid #e5e7eb',
-                                  borderRadius: '8px',
-                                  fontSize: '12px',
-                                }}
-                              />
-                              <Line
-                                type="monotone"
-                                dataKey="Relevance Score"
-                                stroke="#10b981"
-                                strokeWidth={2}
-                                dot={{ fill: '#10b981', r: 4 }}
-                                activeDot={{ r: 6 }}
-                              />
-                            </LineChart>
-                          </ResponsiveContainer>
-                        </CardContent>
-                      </Card>
-
-                      {/* Status Distribution Pie */}
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="flex items-center gap-2 text-base">
-                            <PieChart className="h-4 w-4 text-emerald-600" />
-                            Status Distribution
-                          </CardTitle>
-                          <CardDescription>Week content status breakdown</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <ResponsiveContainer width="100%" height={200}>
-                            <PieChart>
-                              <Pie
-                                data={getStatusDistribution()}
-                                cx="50%"
-                                cy="50%"
-                                outerRadius={70}
-                                innerRadius={40}
-                                paddingAngle={5}
-                                dataKey="value"
-                                label={({ name, value }) => `${name}: ${value}`}
-                              >
-                                {getStatusDistribution().map((_, index) => (
-                                  <Cell key={index} fill={COLORS[index % COLORS.length]} />
-                                ))}
-                              </Pie>
-                              <Tooltip />
-                            </PieChart>
-                          </ResponsiveContainer>
-                          <div className="flex flex-wrap gap-2 mt-2 justify-center">
-                            {getStatusDistribution().map((item, index) => (
-                              <div key={item.name} className="flex items-center gap-1.5 text-xs">
-                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
-                                <span className="capitalize">{item.name.replace('_', ' ')} ({item.value})</span>
-                              </div>
-                            ))}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </div>
-
-                    {/* Gap Analysis */}
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <TrendingDown className="h-5 w-5 text-amber-500" />
-                          Gap Analysis: Curriculum vs Industry
-                        </CardTitle>
-                        <CardDescription>Negative gaps indicate areas where the curriculum falls behind industry demand</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <ResponsiveContainer width="100%" height={300}>
-                          <BarChart data={getComparisonData()} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="category" tick={{ fontSize: 11 }} />
-                            <YAxis tick={{ fontSize: 11 }} />
-                            <Tooltip
-                              contentStyle={{
-                                backgroundColor: 'white',
-                                border: '1px solid #e5e7eb',
-                                borderRadius: '8px',
-                                fontSize: '12px',
-                              }}
-                            />
-                            <Bar dataKey="Gap" radius={[4, 4, 0, 0]}>
-                              {getComparisonData().map((entry, index) => (
-                                <Cell
-                                  key={index}
-                                  fill={entry.Gap < 0 ? '#ef4444' : entry.Gap === 0 ? '#f59e0b' : '#22c55e'}
-                                />
-                              ))}
-                            </Bar>
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </CardContent>
-                    </Card>
-
-                    {/* Week-wise Table */}
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <BookOpen className="h-5 w-5 text-emerald-600" />
-                          Week-wise Analysis
-                        </CardTitle>
-                        <CardDescription>Detailed breakdown of each week&apos;s content relevance</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="max-h-96 overflow-y-auto">
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead className="w-20">Week</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead className="w-40">Relevance</TableHead>
-                                <TableHead>Analysis Notes</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {analysis.weekAnalysis?.map((wa) => (
-                                <TableRow key={wa.week}>
-                                  <TableCell className="font-medium">Week {wa.week}</TableCell>
-                                  <TableCell>
-                                    <Badge variant="outline" className={getStatusColor(wa.status)}>
-                                      {wa.status.replace('_', ' ')}
-                                    </Badge>
-                                  </TableCell>
-                                  <TableCell>
-                                    <div className="flex items-center gap-2">
-                                      <Progress value={wa.relevanceScore} className={`h-2 w-20 ${getScoreBgColor(wa.relevanceScore)}`} />
-                                      <span className="text-sm font-medium">{wa.relevanceScore}%</span>
-                                    </div>
-                                  </TableCell>
-                                  <TableCell className="text-sm text-muted-foreground">{wa.notes}</TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </div>
-                      </CardContent>
-                    </Card>
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-5 w-5" />
+                    Upload & Analyze
                   </>
                 )}
-              </>
-            )}
-          </TabsContent>
+              </Button>
 
-          {/* ==================== Tab 3: Recommendations ==================== */}
-          <TabsContent value="recommendations" className="space-y-6">
-            {!analysis ? (
-              <Card className="py-20">
-                <CardContent className="flex flex-col items-center gap-4 text-center">
-                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
-                    <Lightbulb className="h-8 w-8 text-muted-foreground" />
+              {/* Create Batch */}
+              <div className="mt-4 text-center">
+                <Dialog open={createBatchOpen} onOpenChange={setCreateBatchOpen}>
+                  <DialogTrigger asChild>
+                    <button className="text-sm text-[#2563EB] hover:text-[#1D4ED8] font-medium inline-flex items-center gap-1">
+                      <Plus className="h-3.5 w-3.5" />
+                      Create New Batch
+                    </button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Create New Batch</DialogTitle>
+                      <DialogDescription>Add a new batch to organize your curricula.</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="batch-name">Batch Name *</Label>
+                        <Input
+                          id="batch-name"
+                          placeholder="e.g., Computer Science 2025"
+                          value={newBatchName}
+                          onChange={e => setNewBatchName(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="batch-desc">Description</Label>
+                        <Input
+                          id="batch-desc"
+                          placeholder="Optional description"
+                          value={newBatchDesc}
+                          onChange={e => setNewBatchDesc(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setCreateBatchOpen(false)}>Cancel</Button>
+                      <Button
+                        className="bg-[#2563EB] hover:bg-[#1D4ED8]"
+                        onClick={handleCreateBatch}
+                        disabled={!newBatchName.trim()}
+                      >
+                        Create
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </div>
+
+            {/* Brand */}
+            <p className="text-center text-white/80 text-sm mt-6 font-medium">
+              CurriculumIQ &mdash; AI-Powered Curriculum Intelligence
+            </p>
+          </motion.div>
+        </div>
+      )}
+
+      {/* ==================== ANALYZING VIEW ==================== */}
+      {view === 'analyzing' && (
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#1E3A8A] via-[#2563EB] to-[#3B82F6]">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl shadow-2xl p-10 max-w-lg w-full mx-4 text-center"
+          >
+            {/* Animated Brain Icon */}
+            <div className="flex justify-center mb-6">
+              <div className="relative">
+                <div className="w-20 h-20 rounded-full bg-blue-50 flex items-center justify-center">
+                  <Brain className="h-10 w-10 text-[#2563EB] animate-pulse" />
+                </div>
+                <Sparkles className="h-5 w-5 text-amber-500 absolute -top-1 -right-1 animate-bounce" />
+              </div>
+            </div>
+
+            <h2 className="text-xl font-bold text-[#1F2937] mb-2">
+              Analyzing Curriculum...
+            </h2>
+            <p className="text-[#6B7280] text-sm mb-8">
+              AI is evaluating your curriculum against current industry trends
+            </p>
+
+            {/* 3-Step Progress */}
+            <div className="flex items-center justify-center gap-0 mb-8">
+              {/* Step 1 */}
+              <div className="flex flex-col items-center z-10">
+                <motion.div
+                  initial={false}
+                  animate={{
+                    backgroundColor: analyzeStep >= 1 ? '#10B981' : '#E5E7EB',
+                    scale: analyzeStep === 1 ? 1.1 : 1,
+                  }}
+                  transition={{ duration: 0.5 }}
+                  className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm"
+                >
+                  {analyzeStep > 1 ? (
+                    <CheckCircle2 className="h-5 w-5" />
+                  ) : analyzeStep === 1 ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    '1'
+                  )}
+                </motion.div>
+                <span className="text-xs text-[#374151] mt-2 font-medium">Upload File</span>
+              </div>
+
+              {/* Line 1-2 */}
+              <div className="w-16 sm:w-24 h-0.5 -mx-1 relative top-[-14px]">
+                <div className="absolute inset-0 bg-gray-200" />
+                <motion.div
+                  initial={{ width: '0%' }}
+                  animate={{ width: analyzeStep >= 2 ? '100%' : '0%' }}
+                  transition={{ duration: 0.5 }}
+                  className="absolute inset-y-0 left-0 bg-[#2563EB]"
+                />
+              </div>
+
+              {/* Step 2 */}
+              <div className="flex flex-col items-center z-10">
+                <motion.div
+                  initial={false}
+                  animate={{
+                    backgroundColor: analyzeStep >= 2 ? '#2563EB' : '#E5E7EB',
+                    scale: analyzeStep === 2 ? 1.1 : 1,
+                  }}
+                  transition={{ duration: 0.5 }}
+                  className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm"
+                >
+                  {analyzeStep > 2 ? (
+                    <CheckCircle2 className="h-5 w-5" />
+                  ) : analyzeStep === 2 ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    '2'
+                  )}
+                </motion.div>
+                <span className="text-xs text-[#374151] mt-2 font-medium">Generate Report</span>
+              </div>
+
+              {/* Line 2-3 */}
+              <div className="w-16 sm:w-24 h-0.5 -mx-1 relative top-[-14px]">
+                <div className="absolute inset-0 bg-gray-200" />
+                <motion.div
+                  initial={{ width: '0%' }}
+                  animate={{ width: analyzeStep >= 3 ? '100%' : '0%' }}
+                  transition={{ duration: 0.5 }}
+                  className="absolute inset-y-0 left-0 bg-[#2563EB]"
+                />
+              </div>
+
+              {/* Step 3 */}
+              <div className="flex flex-col items-center z-10">
+                <motion.div
+                  initial={false}
+                  animate={{
+                    backgroundColor: analyzeStep >= 3 ? '#2563EB' : '#E5E7EB',
+                    scale: analyzeStep === 3 ? 1.1 : 1,
+                  }}
+                  transition={{ duration: 0.5 }}
+                  className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm"
+                >
+                  {analyzeStep > 3 ? (
+                    <CheckCircle2 className="h-5 w-5" />
+                  ) : analyzeStep === 3 ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    '3'
+                  )}
+                </motion.div>
+                <span className="text-xs text-[#374151] mt-2 font-medium">Get Suggestions</span>
+              </div>
+            </div>
+
+            {/* Progress bar */}
+            <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+              <motion.div
+                className="h-full bg-[#2563EB] rounded-full"
+                animate={{ width: `${(analyzeStep / 3) * 100}%` }}
+                transition={{ duration: 0.5 }}
+              />
+            </div>
+            <p className="text-xs text-[#9CA3AF] mt-3">
+              This may take 15-30 seconds
+            </p>
+          </motion.div>
+        </div>
+      )}
+
+      {/* ==================== RESULTS VIEW ==================== */}
+      {view === 'results' && analysis && (
+        <div className="min-h-screen bg-gradient-to-br from-[#1E3A8A] via-[#2563EB] to-[#60A5FA] py-8 px-4">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="max-w-[1140px] mx-auto bg-white rounded-2xl shadow-2xl overflow-hidden"
+          >
+            {/* File Uploaded Banner */}
+            <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-green-100 px-6 py-4">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-[#10B981] flex items-center justify-center">
+                    <CheckCircle2 className="h-5 w-5 text-white" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-lg">No analysis available</h3>
-                    <p className="text-muted-foreground mt-1">Analyze a curriculum first to see recommendations.</p>
+                    <p className="font-semibold text-[#1F2937] text-sm">File Uploaded Successfully</p>
+                    <p className="text-xs text-[#6B7280]">
+                      {curriculum?.fileName} &bull; {uploadFile ? `${(uploadFile.size / 1024).toFixed(1)} KB` : ''}
+                    </p>
                   </div>
-                </CardContent>
-              </Card>
-            ) : (
-              <>
-                <div className="space-y-1">
-                  <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-                    <Lightbulb className="h-6 w-6 text-amber-500" />
-                    AI Recommendations
-                  </h2>
-                  <p className="text-muted-foreground">Smart suggestions to modernize your curriculum based on current industry trends</p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleChangeFile}
+                  className="text-xs gap-1.5 border-[#E5E7EB] text-[#374151] hover:bg-gray-50"
+                >
+                  Change File
+                </Button>
+              </div>
+            </div>
+
+            {/* 3-Step Progress Indicator (Completed) */}
+            <div className="px-6 py-4 border-b border-[#E5E7EB]">
+              <div className="flex items-center justify-center">
+                <div className="flex items-center gap-0">
+                  {[
+                    { label: 'Upload File', step: 1 },
+                    { label: 'Generate Report', step: 2 },
+                    { label: 'Get Suggestions', step: 3 },
+                  ].map((item, idx) => (
+                    <React.Fragment key={item.step}>
+                      {idx > 0 && (
+                        <div className="w-10 sm:w-16 h-0.5 bg-[#2563EB] -mx-0.5" />
+                      )}
+                      <div className="flex flex-col items-center">
+                        <div className="w-8 h-8 rounded-full bg-[#2563EB] flex items-center justify-center text-white text-xs font-bold">
+                          {item.step}
+                        </div>
+                        <span className="text-[10px] text-[#374151] mt-1 font-medium hidden sm:block">{item.label}</span>
+                      </div>
+                    </React.Fragment>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-6">
+              {/* ==================== 4 Score Cards ==================== */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* 1. Overall Score */}
+                <div className="border border-[#E5E7EB] rounded-xl p-5 flex flex-col items-center">
+                  <p className="text-sm font-medium text-[#6B7280] mb-3">Overall Score</p>
+                  <CircularProgress value={analysis.overallScore} size={100} strokeWidth={8} />
                 </div>
 
-                {/* Outdated Topics */}
-                <Card className="border-red-200">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center gap-2 text-red-700">
-                      <AlertTriangle className="h-5 w-5" />
-                      Outdated Topics ({analysis.outdatedTopics?.length || 0})
-                    </CardTitle>
-                    <CardDescription>These topics are outdated and need to be updated or replaced</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {(!analysis.outdatedTopics || analysis.outdatedTopics.length === 0) ? (
-                      <div className="flex items-center gap-2 py-4 text-emerald-600">
-                        <CheckCircle2 className="h-5 w-5" />
-                        <p className="font-medium">No outdated topics detected!</p>
-                      </div>
-                    ) : (
-                      <div className="max-h-80 overflow-y-auto space-y-3">
-                        {analysis.outdatedTopics.map((topic, i) => (
-                          <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-red-50 border border-red-100">
-                            <div className="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center shrink-0 mt-0.5">
-                              <span className="text-xs font-bold text-red-600">{topic.week}</span>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium text-sm text-red-900">{topic.topic}</p>
-                              <p className="text-xs text-red-600 mt-1">{topic.reason}</p>
-                            </div>
-                            <Badge variant="destructive" className="shrink-0">Week {topic.week}</Badge>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                {/* 2. Report Status */}
+                <div className="border border-[#E5E7EB] rounded-xl p-5 flex flex-col items-center justify-center">
+                  <p className="text-sm font-medium text-[#6B7280] mb-3">Report Status</p>
+                  {(() => {
+                    const badge = getStatusBadge(analysis.effectivenessScore);
+                    return (
+                      <>
+                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium border ${badge.color}`}>
+                          <span className={`w-2 h-2 rounded-full ${badge.dot}`} />
+                          {badge.text}
+                        </span>
+                        <p className="text-xs text-[#9CA3AF] mt-2 text-center">
+                          {getScoreLabel(analysis.effectivenessScore)} — analysis of {weekData.length} weeks
+                        </p>
+                      </>
+                    );
+                  })()}
+                </div>
 
-                {/* Recommended Topics to Add */}
-                <Card className="border-emerald-200">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center gap-2 text-emerald-700">
-                      <Sparkles className="h-5 w-5" />
-                      Recommended Topics to Add ({analysis.recommendedTopics?.length || 0})
-                    </CardTitle>
-                    <CardDescription>These modern topics should be added to keep the curriculum competitive</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {(!analysis.recommendedTopics || analysis.recommendedTopics.length === 0) ? (
-                      <p className="text-muted-foreground py-4">No specific topic recommendations at this time.</p>
-                    ) : (
-                      <div className="max-h-96 overflow-y-auto space-y-3">
-                        {analysis.recommendedTopics.map((topic, i) => (
-                          <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-emerald-50 border border-emerald-100">
-                            <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center shrink-0 mt-0.5">
-                              <span className="text-xs font-bold text-emerald-600">{topic.suggestedWeek}</span>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <p className="font-medium text-sm text-emerald-900">{topic.topic}</p>
-                                <Badge
-                                  variant={getPriorityColor(topic.priority) as "destructive" | "default" | "secondary"}
-                                  className="text-xs"
-                                >
-                                  {topic.priority} priority
-                                </Badge>
-                              </div>
-                              <p className="text-xs text-emerald-600 mt-1">{topic.reason}</p>
-                            </div>
-                            <Badge variant="outline" className="shrink-0 bg-white border-emerald-200 text-emerald-700">
-                              Week {topic.suggestedWeek}
-                            </Badge>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                {/* 3. Confidence Score */}
+                <div className="border border-[#E5E7EB] rounded-xl p-5 flex flex-col items-center justify-center">
+                  <p className="text-sm font-medium text-[#6B7280] mb-3">Confidence Score</p>
+                  <p className="text-4xl font-bold text-[#2563EB]">{analysis.effectivenessScore}%</p>
+                  <p className="text-xs text-[#9CA3AF] mt-2 text-center">
+                    AI confidence in evaluation accuracy
+                  </p>
+                </div>
 
-                {/* Download Updated Curriculum XLS */}
-                <Card className="border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50">
-                  <CardContent className="py-6">
-                    <div className="flex flex-col sm:flex-row items-center gap-4">
-                      <div className="w-14 h-14 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
-                        <FileDown className="h-7 w-7 text-emerald-600" />
-                      </div>
-                      <div className="flex-1 text-center sm:text-left">
-                        <h3 className="font-semibold text-emerald-900">Download Updated Curriculum</h3>
-                        <p className="text-sm text-emerald-700 mt-0.5">Get a complete XLS file with outdated topics marked, recommended topics added, and full analysis report across 5 sheets</p>
-                      </div>
-                      <Button
-                        className="gap-2 bg-emerald-600 hover:bg-emerald-700 shrink-0"
-                        onClick={handleDownloadXLS}
-                      >
-                        <Download className="h-4 w-4" />
-                        Download XLS
-                      </Button>
+                {/* 4. Detected Topics */}
+                <div className="border border-[#E5E7EB] rounded-xl p-5 flex flex-col items-center justify-center">
+                  <p className="text-sm font-medium text-[#6B7280] mb-3">Detected Topics</p>
+                  <p className="text-lg font-bold text-[#1F2937]">{uniqueTopics.length} Topics</p>
+                  <div className="flex flex-wrap gap-1 mt-2 justify-center max-h-16 overflow-hidden">
+                    {uniqueTopics.slice(0, 5).map(t => (
+                      <span key={t} className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] rounded-full font-medium">
+                        {t.length > 18 ? t.slice(0, 18) + '...' : t}
+                      </span>
+                    ))}
+                    {uniqueTopics.length > 5 && (
+                      <span className="px-2 py-0.5 bg-gray-100 text-gray-500 text-[10px] rounded-full font-medium">
+                        +{uniqueTopics.length - 5} more
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* ==================== What's Good / Needs Improvement ==================== */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* What's Good */}
+                <div className="border border-green-100 rounded-xl p-5 bg-green-50/30">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-6 h-6 rounded-full bg-[#10B981] flex items-center justify-center">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-white" />
                     </div>
-                  </CardContent>
-                </Card>
-              </>
-            )}
-          </TabsContent>
-        </Tabs>
-      </main>
+                    <h3 className="font-semibold text-green-800 text-sm">What&apos;s Good</h3>
+                  </div>
+                  {whatIsGood.length > 0 ? (
+                    <ul className="space-y-2.5">
+                      {whatIsGood.map((item, i) => (
+                        <li key={i} className="flex items-start gap-2 text-sm">
+                          <CheckCircle2 className="h-4 w-4 text-[#10B981] mt-0.5 shrink-0" />
+                          <span className="text-[#374151]">{item.note || `Week ${item.week} topics are current and relevant`}</span>
+                        </li>
+                      ))}
+                      {whatIsGood.length === 0 && (
+                        <li className="flex items-start gap-2 text-sm">
+                          <CheckCircle2 className="h-4 w-4 text-[#10B981] mt-0.5 shrink-0" />
+                          <span className="text-[#374151]">Curriculum structure is well organized</span>
+                        </li>
+                      )}
+                    </ul>
+                  ) : (
+                    <ul className="space-y-2.5">
+                      {analysis.summary ? (
+                        <li className="flex items-start gap-2 text-sm">
+                          <CheckCircle2 className="h-4 w-4 text-[#10B981] mt-0.5 shrink-0" />
+                          <span className="text-[#374151]">{analysis.summary}</span>
+                        </li>
+                      ) : null}
+                      <li className="flex items-start gap-2 text-sm">
+                        <CheckCircle2 className="h-4 w-4 text-[#10B981] mt-0.5 shrink-0" />
+                        <span className="text-[#374151]">Curriculum structure covers multiple weeks</span>
+                      </li>
+                    </ul>
+                  )}
+                </div>
 
-      {/* Footer */}
-      <footer className="border-t py-6 mt-auto">
-        <div className="max-w-[1600px] mx-auto px-4 md:px-6 flex items-center justify-between text-sm text-muted-foreground">
-          <p>CurriculumIQ — AI-Powered Curriculum Intelligence</p>
-          <p>Built with Next.js & AI Analysis</p>
+                {/* Needs Improvement */}
+                <div className="border border-orange-100 rounded-xl p-5 bg-orange-50/30">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-6 h-6 rounded-full bg-[#F59E0B] flex items-center justify-center">
+                      <AlertTriangle className="h-3.5 w-3.5 text-white" />
+                    </div>
+                    <h3 className="font-semibold text-orange-800 text-sm">Needs Improvement</h3>
+                  </div>
+                  {needsImprovement.length > 0 ? (
+                    <ul className="space-y-2.5">
+                      {needsImprovement.map((item, i) => (
+                        <li key={i} className="flex items-start gap-2 text-sm">
+                          <AlertTriangle className="h-4 w-4 text-[#F59E0B] mt-0.5 shrink-0" />
+                          <span className="text-[#374151]">
+                            <strong>{item.topic}</strong> — {item.reason}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <ul className="space-y-2.5">
+                      <li className="flex items-start gap-2 text-sm">
+                        <AlertTriangle className="h-4 w-4 text-[#F59E0B] mt-0.5 shrink-0" />
+                        <span className="text-[#374151]">Consider adding modern industry-relevant topics</span>
+                      </li>
+                    </ul>
+                  )}
+                </div>
+              </div>
+
+              {/* ==================== AI Suggestions ==================== */}
+              <div>
+                <h3 className="font-semibold text-[#1F2937] text-base mb-4 flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-[#2563EB]" />
+                  AI Suggestions
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {aiSuggestions.map((sug, i) => (
+                    <div
+                      key={i}
+                      className="border border-[#E5E7EB] rounded-xl p-4 hover:shadow-md transition-shadow cursor-pointer group"
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
+                          <Lightbulb className="h-4 w-4 text-[#2563EB]" />
+                        </div>
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${getPriorityColor(sug.priority)}`}>
+                          {sug.priority}
+                        </span>
+                      </div>
+                      <p className="font-semibold text-sm text-[#1F2937] mb-1">{sug.topic}</p>
+                      <p className="text-xs text-[#6B7280] line-clamp-2">{sug.reason}</p>
+                      <div className="flex items-center gap-1 mt-3 text-[#2563EB] text-xs font-medium">
+                        Learn more
+                        <ArrowRight className="h-3 w-3 group-hover:translate-x-1 transition-transform" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* ==================== Quick Fix Suggestions ==================== */}
+              {quickFixes.length > 0 && (
+                <div>
+                  <h3 className="font-semibold text-[#1F2937] text-base mb-4 flex items-center gap-2">
+                    <Zap className="h-4 w-4 text-amber-500" />
+                    Quick Fix Suggestions
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {quickFixes.map((fix, i) => (
+                      <div
+                        key={i}
+                        className="border border-[#E5E7EB] rounded-xl p-4 flex items-start gap-3 hover:bg-gray-50 transition-colors"
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center shrink-0">
+                          <Target className="h-4 w-4 text-amber-600" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-medium text-sm text-[#1F2937]">{fix.topic}</p>
+                          <p className="text-xs text-[#6B7280] mt-0.5 line-clamp-1">{fix.reason}</p>
+                          <span className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full border mt-1.5 ${getPriorityColor(fix.priority)}`}>
+                            {fix.priority} priority
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ==================== Report Summary & Charts ==================== */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Summary Stats */}
+                <div className="border border-[#E5E7EB] rounded-xl p-5">
+                  <h3 className="font-semibold text-[#1F2937] text-sm mb-4 flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4 text-[#2563EB]" />
+                    Report Summary
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between py-2 border-b border-[#F3F4F6]">
+                      <span className="text-sm text-[#6B7280]">Total Weeks</span>
+                      <span className="text-sm font-semibold text-[#1F2937]">{weekData.length}</span>
+                    </div>
+                    <div className="flex items-center justify-between py-2 border-b border-[#F3F4F6]">
+                      <span className="text-sm text-[#6B7280]">Total Topics</span>
+                      <span className="text-sm font-semibold text-[#1F2937]">{uniqueTopics.length}</span>
+                    </div>
+                    <div className="flex items-center justify-between py-2 border-b border-[#F3F4F6]">
+                      <span className="text-sm text-[#6B7280]">Outdated Topics</span>
+                      <span className="text-sm font-semibold text-red-600">{analysis.outdatedTopics?.length || 0}</span>
+                    </div>
+                    <div className="flex items-center justify-between py-2 border-b border-[#F3F4F6]">
+                      <span className="text-sm text-[#6B7280]">Recommended Additions</span>
+                      <span className="text-sm font-semibold text-blue-600">{analysis.recommendedTopics?.length || 0}</span>
+                    </div>
+                    <div className="flex items-center justify-between py-2">
+                      <span className="text-sm text-[#6B7280]">Generated Date</span>
+                      <span className="text-sm font-semibold text-[#1F2937]">{new Date().toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Chart */}
+                <div className="border border-[#E5E7EB] rounded-xl p-5">
+                  <h3 className="font-semibold text-[#1F2937] text-sm mb-4 flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-[#2563EB]" />
+                    Week Relevance Scores
+                  </h3>
+                  <div className="h-[200px]">
+                    {weekScoreData.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={weekScoreData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
+                          <XAxis dataKey="week" tick={{ fontSize: 11, fill: '#6B7280' }} />
+                          <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: '#6B7280' }} />
+                          <Tooltip
+                            contentStyle={{
+                              borderRadius: '8px',
+                              border: '1px solid #E5E7EB',
+                              boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
+                              fontSize: '12px',
+                            }}
+                          />
+                          <Line
+                            type="monotone"
+                            dataKey="score"
+                            stroke="#2563EB"
+                            strokeWidth={2}
+                            dot={{ fill: '#2563EB', r: 4 }}
+                            activeDot={{ r: 6 }}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-[#9CA3AF] text-sm">
+                        No week analysis data
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* ==================== Trend Comparison Chart ==================== */}
+              {comparisonData.length > 0 && (
+                <div className="border border-[#E5E7EB] rounded-xl p-5">
+                  <h3 className="font-semibold text-[#1F2937] text-sm mb-4 flex items-center gap-2">
+                    <Target className="h-4 w-4 text-[#2563EB]" />
+                    Curriculum vs Industry Trends
+                  </h3>
+                  <div className="h-[250px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={comparisonData} barGap={4}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
+                        <XAxis dataKey="category" tick={{ fontSize: 11, fill: '#6B7280' }} />
+                        <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: '#6B7280' }} />
+                        <Tooltip
+                          contentStyle={{
+                            borderRadius: '8px',
+                            border: '1px solid #E5E7EB',
+                            boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
+                            fontSize: '12px',
+                          }}
+                        />
+                        <Bar dataKey="Curriculum" fill="#2563EB" radius={[4, 4, 0, 0]} barSize={24} />
+                        <Bar dataKey="Industry" fill="#10B981" radius={[4, 4, 0, 0]} barSize={24} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
+
+              {/* ==================== Action Buttons ==================== */}
+              <div className="flex flex-wrap items-center gap-3 pt-2">
+                <Button
+                  onClick={handleDownloadXLS}
+                  variant="outline"
+                  className="gap-2 border-[#E5E7EB] text-[#2563EB] hover:bg-blue-50 font-medium"
+                >
+                  <Download className="h-4 w-4" />
+                  Download XLS
+                </Button>
+                <Button
+                  onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                  variant="outline"
+                  className="gap-2 border-[#E5E7EB] text-[#2563EB] hover:bg-blue-50 font-medium"
+                >
+                  <Eye className="h-4 w-4" />
+                  View Detailed Report
+                </Button>
+                <Button
+                  onClick={handleReAnalyze}
+                  className="gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-medium"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Apply AI Improvements
+                </Button>
+              </div>
+
+              {/* Security Note */}
+              <div className="flex items-center justify-center gap-2 pt-2 pb-2">
+                <Shield className="h-3.5 w-3.5 text-[#9CA3AF]" />
+                <p className="text-xs text-[#9CA3AF]">Your data is secure with us.</p>
+              </div>
+            </div>
+          </motion.div>
         </div>
-      </footer>
+      )}
     </div>
   );
 }
+
+
