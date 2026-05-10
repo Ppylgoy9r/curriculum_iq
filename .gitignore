@@ -48,3 +48,4 @@ docker-compose.override.yml
 /skills/
 dev.log
 server.log
+/scratch/

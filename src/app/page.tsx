@@ -3,10 +3,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -690,8 +686,8 @@ export default function Home() {
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
             ) : batches.length === 0 ? (
-              <Card className="py-20">
-                <CardContent className="flex flex-col items-center gap-4 text-center">
+              <div className="py-20">
+                <div className="flex flex-col items-center gap-4 text-center">
                   <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
                     <GraduationCap className="h-8 w-8 text-muted-foreground" />
                   </div>
@@ -703,18 +699,18 @@ export default function Home() {
                     <Plus className="h-4 w-4" />
                     Create First Batch
                   </Button>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {batches.map(batch => (
-                  <Card key={batch.id} className="relative group">
-                    <CardHeader className="pb-3">
+                  <div key={batch.id} className="relative group">
+                    <div className="pb-3">
                       <div className="flex items-start justify-between">
                         <div className="space-y-1">
-                          <CardTitle className="text-lg">{batch.name}</CardTitle>
+                          <h3 className="text-lg">{batch.name}</h3>
                           {batch.description && (
-                            <CardDescription className="line-clamp-2">{batch.description}</CardDescription>
+                            <p className="line-clamp-2">{batch.description}</p>
                           )}
                         </div>
                         <Button
@@ -726,8 +722,8 @@ export default function Home() {
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
+                    </div>
+                    <div className="space-y-4">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <FileSpreadsheet className="h-4 w-4" />
                         <span>{batch.curricula?.length || 0} curriculum{(batch.curricula?.length || 0) !== 1 ? 's' : ''}</span>
@@ -772,8 +768,8 @@ export default function Home() {
                         <Upload className="h-3.5 w-3.5" />
                         Upload Curriculum (XLS)
                       </Button>
-                    </CardContent>
-                  </Card>
+                      </div>
+                    </div>
                 ))}
               </div>
             )}
@@ -863,8 +859,8 @@ export default function Home() {
           {/* ==================== Tab 2: Analysis Dashboard ==================== */}
           <TabsContent value="dashboard" className="space-y-6">
             {!selectedCurriculum ? (
-              <Card className="py-20">
-                <CardContent className="flex flex-col items-center gap-4 text-center">
+              <div className="py-20">
+                <div className="flex flex-col items-center gap-4 text-center">
                   <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
                     <BarChart3 className="h-8 w-8 text-muted-foreground" />
                   </div>
@@ -872,8 +868,8 @@ export default function Home() {
                     <h3 className="font-semibold text-lg">No curriculum selected</h3>
                     <p className="text-muted-foreground mt-1">Go to the Batches tab and select a curriculum to analyze.</p>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             ) : (
               <>
                 {/* Curriculum Header */}
@@ -987,7 +983,7 @@ export default function Home() {
                 {/* Analysis Results */}
                 {analysis && !analyzing && (
                   <>
-                    {/* Top Stats - Featured Score Card */}
+                    {/* Top Stats - Featured Score div */}
                     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                       <div className="iq-card featured-report-card lg:col-span-2 overflow-hidden group">
                         <div className="absolute top-0 right-0 p-8 opacity-10 rotate-12 transition-transform duration-1000 group-hover:scale-110">
@@ -1004,10 +1000,10 @@ export default function Home() {
                             </div>
                           </div>
                         </div>
-                        <CardContent className="relative z-10 flex flex-col md:flex-row items-center gap-10 py-8">
-                        <div className="relative flex items-center justify-center shrink-0">
-                          <div className="absolute inset-0 rounded-full bg-white/10 blur-2xl animate-pulse" />
-                          <svg className="w-40 h-40 transform -rotate-90 drop-shadow-2xl">
+                        <div className="relative z-10 flex flex-col md:flex-row items-center gap-10 py-8">
+                          <div className="relative flex items-center justify-center shrink-0">
+                            <div className="absolute inset-0 rounded-full bg-white/10 blur-2xl animate-pulse" />
+                            <svg className="w-40 h-40 transform -rotate-90 drop-shadow-2xl">
                               <circle
                                 cx="80"
                                 cy="80"
@@ -1047,20 +1043,20 @@ export default function Home() {
                               {analysis.summary}
                             </p>
                           </div>
-                        </CardContent>
-                      </Card>
+                        </div>
+                      </div>
 
-                      {/* Industry Match Card */}
-                      <Card className="border-none bg-white shadow-xl flex flex-col justify-between overflow-hidden group">
-                        <CardHeader className="pb-2">
+                      {/* Industry Match div */}
+                      <div className="border-none bg-white shadow-xl flex flex-col justify-between overflow-hidden group">
+                        <div className="pb-2">
                           <div className="flex justify-between items-start">
-                            <CardTitle className="text-sm font-black text-slate-400 uppercase tracking-[0.2em]">Market Alignment</CardTitle>
+                            <h3 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em]">Market Alignment</h3>
                             <div className="p-2 rounded-full bg-slate-50 text-slate-400 group-hover:bg-emerald-50 group-hover:text-emerald-500 transition-colors">
                               <Target className="h-5 w-5" />
                             </div>
                           </div>
-                        </CardHeader>
-                        <CardContent className="flex flex-col items-center justify-center py-6">
+                        </div>
+                        <div className="flex flex-col items-center justify-center py-6">
                           <div className="text-7xl font-black text-slate-800 tracking-tighter transition-transform duration-500 group-hover:scale-110">
                             {analysis.overallScore}
                             <span className="text-2xl text-slate-300 font-bold ml-1">/100</span>
@@ -1068,7 +1064,7 @@ export default function Home() {
                           <p className="text-sm font-semibold text-slate-500 mt-4 text-center px-4">
                             Matching 2025 industry competency requirements
                           </p>
-                        </CardContent>
+                        </div>
                         <div className="p-6 bg-slate-50 mt-auto border-t border-slate-100">
                           <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">
                             <span>Legacy</span>
@@ -1081,22 +1077,23 @@ export default function Home() {
                             />
                           </div>
                         </div>
-                      </Card>
+                      </div>
                     </div>
+
 
                     {/* Charts Section */}
                     <div className="grid gap-6 lg:grid-cols-2">
-                      <Card className="border-none shadow-xl bg-white overflow-hidden">
-                        <CardHeader className="border-b border-slate-50 pb-4 bg-slate-50/30">
-                          <CardTitle className="flex items-center gap-3 text-slate-800 text-lg">
+                      <div className="border-none shadow-xl bg-white overflow-hidden">
+                        <div className="border-b border-slate-50 pb-4 bg-slate-50/30">
+                          <h3 className="flex items-center gap-3 text-slate-800 text-lg">
                             <div className="p-2 rounded-lg bg-emerald-500/10">
                               <BarChart3 className="h-5 w-5 text-emerald-600" />
                             </div>
                             Domain Coverage Map
-                          </CardTitle>
-                          <CardDescription className="font-medium text-slate-500">Industry demand vs. current curriculum focus</CardDescription>
-                        </CardHeader>
-                        <CardContent className="p-6 pt-10">
+                          </h3>
+                          <p className="font-medium text-slate-500">Industry demand vs. current curriculum focus</p>
+                        </div>
+                        <div className="p-6 pt-10">
                           <ResponsiveContainer width="100%" height={340}>
                             <RadarChart cx="50%" cy="50%" outerRadius="80%" data={getComparisonData()}>
                               <PolarGrid stroke="#e2e8f0" strokeDasharray="4 4" />
@@ -1126,20 +1123,20 @@ export default function Home() {
                               />
                             </RadarChart>
                           </ResponsiveContainer>
-                        </CardContent>
-                      </Card>
+                        </div>
+                      </div>
 
-                      <Card className="border-none shadow-xl bg-white overflow-hidden">
-                        <CardHeader className="border-b border-slate-50 pb-4 bg-slate-50/30">
-                          <CardTitle className="flex items-center gap-3 text-slate-800 text-lg">
+                      <div className="border-none shadow-xl bg-white overflow-hidden">
+                        <div className="border-b border-slate-50 pb-4 bg-slate-50/30">
+                          <h3 className="flex items-center gap-3 text-slate-800 text-lg">
                             <div className="p-2 rounded-lg bg-amber-500/10">
                               <TrendingDown className="h-5 w-5 text-amber-600" />
                             </div>
                             Critical Skill Gap Audit
-                          </CardTitle>
-                          <CardDescription className="font-medium text-slate-500">Identification of deficit areas in the learning path</CardDescription>
-                        </CardHeader>
-                        <CardContent className="p-6 pt-10">
+                          </h3>
+                          <p className="font-medium text-slate-500">Identification of deficit areas in the learning path</p>
+                        </div>
+                        <div className="p-6 pt-10">
                           <ResponsiveContainer width="100%" height={340}>
                             <BarChart data={getComparisonData()} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
                               <CartesianGrid strokeDasharray="1 6" vertical={false} stroke="#e2e8f0" />
@@ -1159,30 +1156,31 @@ export default function Home() {
                               </Bar>
                             </BarChart>
                           </ResponsiveContainer>
-                        </CardContent>
-                      </Card>
+                        </div>
+                      </div>
                     </div>
 
                     {/* Table Section */}
-                    <Card className="border-none shadow-xl bg-white overflow-hidden">
-                      <CardHeader className="border-b border-slate-100 px-8 py-6 bg-slate-50/50">
+                    <div className="border-none shadow-xl bg-white overflow-hidden">
+                      <div className="border-b border-slate-100 px-8 py-6 bg-slate-50/50">
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                           <div>
-                            <CardTitle className="flex items-center gap-3 text-slate-800 text-xl font-bold">
+                            <h3 className="flex items-center gap-3 text-slate-800 text-xl font-bold">
                               <div className="p-2.5 rounded-xl bg-emerald-600 text-white shadow-lg shadow-emerald-200">
                                 <BookOpen className="h-6 w-6" />
                               </div>
                               Granular Curriculum Audit
-                            </CardTitle>
-                            <CardDescription className="mt-1 font-medium text-slate-500">A week-by-week deep dive into content relevance and industry alignment</CardDescription>
+                            </h3>
+                            <p className="mt-1 font-medium text-slate-500">A week-by-week deep dive into content relevance and industry alignment</p>
                           </div>
+
                           <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-slate-200 shadow-sm">
                             <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Total Duration:</span>
                             <span className="text-sm font-black text-emerald-600">{analysis.weekAnalysis?.length} Weeks</span>
                           </div>
                         </div>
-                      </CardHeader>
-                      <CardContent className="p-0">
+                        </div>
+                      <div className="p-0">
                         <div className="iq-table-container">
                           <table className="iq-table">
                             <thead>
@@ -1209,42 +1207,41 @@ export default function Home() {
                                       'status-missing'
                                     }`}>
                                       <div className={`w-1.5 h-1.5 rounded-full ${
-                                        wa.status === 'outdated' ? 'bg-rose-500' :
+                                        item.status === 'outdated' ? 'bg-rose-500' :
                                         'bg-amber-500'
                                       }`} />
-                                      {wa.status.replace('_', ' ')}
+                                      {item.status.replace('_', ' ')}
                                     </div>
-                                  </TableCell>
-                                  <TableCell>
+                                  </td>
+                                  <td>
                                     <div className="flex items-center gap-4 group/score">
                                       <div className="h-2.5 flex-1 bg-slate-100 rounded-full overflow-hidden shadow-inner p-0.5">
                                         <div 
                                           className={`h-full rounded-full transition-all duration-1000 group-hover/score:scale-y-110 ${
-                                            wa.relevanceScore >= 80 ? 'bg-gradient-to-r from-emerald-400 to-emerald-500' : 
-                                            wa.relevanceScore >= 60 ? 'bg-gradient-to-r from-amber-400 to-amber-500' : 
+                                            item.relevanceScore >= 80 ? 'bg-gradient-to-r from-emerald-400 to-emerald-500' : 
+                                            item.relevanceScore >= 60 ? 'bg-gradient-to-r from-amber-400 to-amber-500' : 
                                             'bg-gradient-to-r from-rose-400 to-rose-500'
                                           }`}
-                                          style={{ width: `${wa.relevanceScore}%` }}
+                                          style={{ width: `${item.relevanceScore}%` }}
                                         />
                                       </div>
-                                      <span className="text-sm font-black text-slate-700 min-w-[4ch] tabular-nums">{wa.relevanceScore}%</span>
+                                      <span className="text-sm font-black text-slate-700 min-w-[4ch] tabular-nums">{item.relevanceScore}%</span>
                                     </div>
-                                  </TableCell>
-                                  <TableCell className="py-6">
+                                  </td>
+                                  <td>
                                     <p className="text-sm font-semibold leading-relaxed text-slate-600 max-w-xl group-hover:text-slate-900 transition-colors">
-                                      {wa.notes}
+                                      {item.notes}
                                     </p>
-                                  </TableCell>
-                                </TableRow>
+                                  </td>
+                                </tr>
                               ))}
-                            </TableBody>
-                          </Table>
+                            </tbody>
+                          </table>
                         </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </>
-              )}
+                      </div>
+                    </div>
+                  </>
+                )}
               </>
             )}
           </TabsContent>
@@ -1252,8 +1249,8 @@ export default function Home() {
           {/* ==================== Tab 3: Recommendations ==================== */}
           <TabsContent value="recommendations" className="space-y-6">
             {!analysis ? (
-              <Card className="py-20">
-                <CardContent className="flex flex-col items-center gap-4 text-center">
+              <div className="py-20">
+                <div className="flex flex-col items-center gap-4 text-center">
                   <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
                     <Lightbulb className="h-8 w-8 text-muted-foreground" />
                   </div>
@@ -1261,8 +1258,8 @@ export default function Home() {
                     <h3 className="font-semibold text-lg">No analysis available</h3>
                     <p className="text-muted-foreground mt-1">Analyze a curriculum first to see recommendations.</p>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             ) : (
               <>
                 <div className="space-y-1">
@@ -1274,15 +1271,15 @@ export default function Home() {
                 </div>
 
                 {/* Outdated Topics */}
-                <Card className="border-red-200">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center gap-2 text-red-700">
+                <div className="border-red-200">
+                  <div className="pb-3">
+                    <h3 className="flex items-center gap-2 text-red-700">
                       <AlertTriangle className="h-5 w-5" />
                       Outdated Topics ({analysis.outdatedTopics?.length || 0})
-                    </CardTitle>
-                    <CardDescription>These topics are outdated and need to be updated or replaced</CardDescription>
-                  </CardHeader>
-                  <CardContent>
+                    </h3>
+                    <p>These topics are outdated and need to be updated or replaced</p>
+                  </div>
+                  <div>
                     {(!analysis.outdatedTopics || analysis.outdatedTopics.length === 0) ? (
                       <div className="flex items-center gap-2 py-4 text-emerald-600">
                         <CheckCircle2 className="h-5 w-5" />
@@ -1304,19 +1301,19 @@ export default function Home() {
                         ))}
                       </div>
                     )}
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
 
                 {/* Recommended Topics to Add */}
-                <Card className="border-emerald-200">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center gap-2 text-emerald-700">
+                <div className="border-emerald-200">
+                  <div className="pb-3">
+                    <h3 className="flex items-center gap-2 text-emerald-700">
                       <Sparkles className="h-5 w-5" />
                       Recommended Topics to Add ({analysis.recommendedTopics?.length || 0})
-                    </CardTitle>
-                    <CardDescription>These modern topics should be added to keep the curriculum competitive</CardDescription>
-                  </CardHeader>
-                  <CardContent>
+                    </h3>
+                    <p>These modern topics should be added to keep the curriculum competitive</p>
+                  </div>
+                  <div>
                     {(!analysis.recommendedTopics || analysis.recommendedTopics.length === 0) ? (
                       <p className="text-muted-foreground py-4">No specific topic recommendations at this time.</p>
                     ) : (
@@ -1345,12 +1342,12 @@ export default function Home() {
                         ))}
                       </div>
                     )}
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
 
                 {/* Download Updated Curriculum XLS */}
-                <Card className="border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50">
-                  <CardContent className="py-6">
+                <div className="border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50">
+                  <div className="py-6">
                     <div className="flex flex-col sm:flex-row items-center gap-4">
                       <div className="w-14 h-14 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
                         <FileDown className="h-7 w-7 text-emerald-600" />
@@ -1367,8 +1364,8 @@ export default function Home() {
                         Download XLS
                       </Button>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               </>
             )}
           </TabsContent>
